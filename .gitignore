@@ -1,0 +1,27 @@
+# --- Dependencies ---
+node_modules/
+dist/
+package-lock.json (Optional: usually kept, but ignored in some workflows)
+
+# --- Environment & Secrets (CRITICAL) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- Prisma ---
+/prisma/migrations/
+# Keep the schema.prisma, but ignore the sqlite db if you use it locally
+*.db
+*.db-journal
+
+# --- IDE & System ---
+.vscode/
+.idea/
+.DS_Store
+*.log
+npm-debug.log*
+
+# --- Docker ---
+.docker/
