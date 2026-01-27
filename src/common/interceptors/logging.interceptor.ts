@@ -2,13 +2,23 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } fr
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
+interface RequestWithMeta {
+  method: string;
+  url: string;
+  get: (header: string) => string | undefined;
+}
+
+interface ResponseWithStatus {
+  statusCode: number;
+}
+
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const { method, url, body } = request;
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<RequestWithMeta>();
+    const { method, url } = request;
     const userAgent = request.get('user-agent') || '';
     const startTime = Date.now();
 
@@ -16,7 +26,7 @@ export class LoggingInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap(() => {
-        const response = context.switchToHttp().getResponse();
+        const response = context.switchToHttp().getResponse<ResponseWithStatus>();
         const { statusCode } = response;
         const duration = Date.now() - startTime;
 

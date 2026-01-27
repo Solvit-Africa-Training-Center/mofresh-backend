@@ -24,24 +24,29 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
-      
+
       if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as Record<string, unknown>;
         message = (responseObj.message as string) || exception.message;
-        errors = Array.isArray(responseObj.message) 
-          ? (responseObj.message as string[]) 
-          : null;
+        errors = Array.isArray(responseObj.message) ? (responseObj.message as string[]) : null;
       } else {
         message = exception.message;
       }
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       status = HttpStatus.BAD_REQUEST;
-      
+
       switch (exception.code) {
-        case 'P2002':
+        case 'P2002': {
           message = 'Unique constraint violation';
-          errors = [`Field ${String(exception.meta?.target || 'unknown')} must be unique`];
+          const target = exception.meta?.target;
+          const targetStr = Array.isArray(target)
+            ? target.join(', ')
+            : typeof target === 'string'
+              ? target
+              : 'unknown';
+          errors = [`Field ${targetStr} must be unique`];
           break;
+        }
         case 'P2025':
           message = 'Record not found';
           status = HttpStatus.NOT_FOUND;

@@ -11,14 +11,25 @@ describe('AppController', () => {
       providers: [AppService],
     }).compile();
 
-    appController = app.get<AppController>(AppController);
+    appController = app.get(AppController);
   });
 
   describe('root', () => {
-    it('should return health check object', () => {
-      const result = appController.getHello();
+    it('should return API info object', () => {
+      const result = appController.getRoot() as Record<string, unknown>;
       expect(result).toHaveProperty('status', 'success');
       expect(result).toHaveProperty('message');
+      expect(result).toHaveProperty('version');
+      expect(result).toHaveProperty('documentation');
+    });
+  });
+
+  describe('health', () => {
+    it('should return health status', () => {
+      const result = appController.getHealth() as Record<string, unknown>;
+      expect(result).toHaveProperty('status', 'ok');
+      expect(result).toHaveProperty('timestamp');
+      expect(result).toHaveProperty('uptime');
     });
   });
 });

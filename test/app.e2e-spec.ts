@@ -15,13 +15,13 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
+  it('/ (GET)', async () => {
+    const server = app.getHttpServer() as unknown;
+    const response = await request(server as Parameters<typeof request>[0])
       .get('/api/v1')
-      .expect(200)
-      .expect((res) => {
-        expect(res.body.status).toBe('success');
-      });
+      .expect(200);
+
+    expect(response.body).toHaveProperty('status', 'success');
   });
 
   afterAll(async () => {
