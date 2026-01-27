@@ -124,12 +124,31 @@ model User {
   createdStockMovements StockMovement[]   @relation("CreatedBy")
   approvedOrders        Order[]           @relation("ApprovedBy")
   paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
+  otps                  Otp[]             @relation("UserOtps")
 
   @@index([email])
   @@index([role])
   @@index([siteId])
   @@map("users")
 }
+
+
+model Otp {
+  id        String   @id @default(uuid())
+  email     String  
+  code      String   
+  userId    String?  // Optional: link to existing user
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User?    @relation("UserOtps", fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([userId])
+  @@map("otps")
+}
+
 
 model Site {
   id         String      @id @default(uuid())

@@ -6,7 +6,6 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from './config/config.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
 import { SitesModule } from './modules/sites/sites.module';
 import { ColdRoomsModule } from './modules/cold-rooms/cold-rooms.module';
 import { ColdAssetsModule } from './modules/cold-assets/cold-assets.module';
@@ -19,6 +18,7 @@ import { RentalsModule } from './modules/rentals/rentals.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
