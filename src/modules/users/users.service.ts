@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { PrismaService } from './../../database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
-import { HashingUtil } from '../common/utils/hashing.util';
+import { HashingUtil } from '../../common/utils/hashing.util';
+
 
 @Injectable()
 export class UsersService {
@@ -42,7 +43,7 @@ export class UsersService {
 
     return {
       status: 'success',
-      message: 'User registered successfully. Verification email sent.',
+      message: 'User registered successfully.',
       data: userWithoutPassword,
     };
   }

@@ -19,6 +19,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { UsersModule } from './modules/users/users.module';
+import { SendGridModule } from './modules/sendgrid/sendgrid.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { UsersModule } from './modules/users/users.module';
     ReportsModule,
     AuditLogsModule,
     WebhooksModule,
+    SendGridModule,
   ],
   controllers: [AppController],
   providers: [AppService],

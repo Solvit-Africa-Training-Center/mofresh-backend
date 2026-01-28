@@ -38,10 +38,7 @@ export class AuthService {
     return {
       status: 'success',
       message: 'Login successful',
-      data: {
-        user: userWithoutPassword,
-        token,
-      },
+      token
     };
   }
 
