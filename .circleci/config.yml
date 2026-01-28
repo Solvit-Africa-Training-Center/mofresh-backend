@@ -11,8 +11,8 @@ executors:
         environment:
           NODE_ENV: test
           DATABASE_URL: postgresql://mofresh_test:test_password@localhost:5432/mofresh_test_db
-          JWT_SECRET: 
-          JWT_REFRESH_SECRET: 
+          JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing
+          JWT_REFRESH_SECRET: test-refresh-secret-minimum-32-characters-for-testing
           JWT_EXPIRES_IN: 1h
           JWT_REFRESH_EXPIRES_IN: 7d
           BCRYPT_ROUNDS: 4
