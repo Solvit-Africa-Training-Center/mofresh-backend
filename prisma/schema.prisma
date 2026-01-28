@@ -101,29 +101,29 @@ enum AuditAction {
 // ===== MODELS =====
 
 model User {
-  id                    String            @id @default(uuid())
-  email                 String            @unique
-  password              String            // bcrypt hashed
-  firstName             String
-  lastName              String
-  phone                 String            @unique
-  role                  UserRole
-  siteId                String?           // NULL for SUPER_ADMIN
-  isActive              Boolean           @default(true)
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  deletedAt             DateTime?         // Soft delete
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String // bcrypt hashed
+  firstName String
+  lastName  String
+  phone     String    @unique
+  role      UserRole
+  siteId    String? // NULL for SUPER_ADMIN
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
 
   // Relations
-  site                  Site?             @relation(fields: [siteId], references: [id])
-  managedSite           Site?             @relation("SiteManager")
-  suppliedProducts      Product[]         @relation("SupplierProducts")
-  orders                Order[]           @relation("ClientOrders")
-  rentals               Rental[]          @relation("ClientRentals")
+  site                  Site?           @relation(fields: [siteId], references: [id])
+  managedSite           Site?           @relation("SiteManager")
+  suppliedProducts      Product[]       @relation("SupplierProducts")
+  orders                Order[]         @relation("ClientOrders")
+  rentals               Rental[]        @relation("ClientRentals")
   auditLogs             AuditLog[]
-  createdStockMovements StockMovement[]   @relation("CreatedBy")
-  approvedOrders        Order[]           @relation("ApprovedBy")
-  paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
+  createdStockMovements StockMovement[] @relation("CreatedBy")
+  approvedOrders        Order[]         @relation("ApprovedBy")
+  paymentsMarkedBy      Payment[]       @relation("MarkedPaidBy")
 
   @@index([email])
   @@index([role])
@@ -132,13 +132,13 @@ model User {
 }
 
 model Site {
-  id         String      @id @default(uuid())
-  name       String
-  location   String
-  managerId  String?     @unique
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  deletedAt  DateTime?
+  id        String    @id @default(uuid())
+  name      String
+  location  String
+  managerId String?   @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   // Relations
   manager    User?       @relation("SiteManager", fields: [managerId], references: [id])
@@ -157,41 +157,41 @@ model Site {
 }
 
 model ColdRoom {
-  id              String           @id @default(uuid())
+  id              String    @id @default(uuid())
   name            String
   siteId          String
   totalCapacityKg Float
-  usedCapacityKg  Float            @default(0)
+  usedCapacityKg  Float     @default(0)
   temperatureMin  Float
   temperatureMax  Float?
   powerType       PowerType
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
   // Relations
-  site            Site             @relation(fields: [siteId], references: [id])
-  products        Product[]
-  stockMovements  StockMovement[]
+  site           Site            @relation(fields: [siteId], references: [id])
+  products       Product[]
+  stockMovements StockMovement[]
 
   @@index([siteId])
   @@map("cold_rooms")
 }
 
 model ColdBox {
-  id                   String       @id @default(uuid())
-  identificationNumber String       @unique
+  id                   String      @id @default(uuid())
+  identificationNumber String      @unique
   sizeOrCapacity       String
   siteId               String
   location             String
-  status               AssetStatus  @default(AVAILABLE)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  status               AssetStatus @default(AVAILABLE)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
   deletedAt            DateTime?
 
   // Relations
-  site                 Site         @relation(fields: [siteId], references: [id])
-  rentals              Rental[]
+  site    Site     @relation(fields: [siteId], references: [id])
+  rentals Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -199,18 +199,18 @@ model ColdBox {
 }
 
 model ColdPlate {
-  id                   String       @id @default(uuid())
-  identificationNumber String       @unique
+  id                   String      @id @default(uuid())
+  identificationNumber String      @unique
   coolingSpecification String
   siteId               String
-  status               AssetStatus  @default(AVAILABLE)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  status               AssetStatus @default(AVAILABLE)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
   deletedAt            DateTime?
 
   // Relations
-  site                 Site         @relation(fields: [siteId], references: [id])
-  rentals              Rental[]
+  site    Site     @relation(fields: [siteId], references: [id])
+  rentals Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -229,8 +229,8 @@ model Tricycle {
   deletedAt   DateTime?
 
   // Relations
-  site        Site             @relation(fields: [siteId], references: [id])
-  rentals     Rental[]
+  site    Site     @relation(fields: [siteId], references: [id])
+  rentals Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -238,7 +238,7 @@ model Tricycle {
 }
 
 model Product {
-  id                  String           @id @default(uuid())
+  id                  String        @id @default(uuid())
   name                String
   category            String?
   quantityKg          Float
@@ -247,17 +247,17 @@ model Product {
   coldRoomId          String
   sellingPricePerUnit Float
   siteId              String
-  status              ProductStatus    @default(IN_STOCK)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  status              ProductStatus @default(IN_STOCK)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
   deletedAt           DateTime?
 
   // Relations
-  supplier            User             @relation("SupplierProducts", fields: [supplierId], references: [id])
-  coldRoom            ColdRoom         @relation(fields: [coldRoomId], references: [id])
-  site                Site             @relation(fields: [siteId], references: [id])
-  stockMovements      StockMovement[]
-  orderItems          OrderItem[]
+  supplier       User            @relation("SupplierProducts", fields: [supplierId], references: [id])
+  coldRoom       ColdRoom        @relation(fields: [coldRoomId], references: [id])
+  site           Site            @relation(fields: [siteId], references: [id])
+  stockMovements StockMovement[]
+  orderItems     OrderItem[]
 
   @@index([supplierId])
   @@index([coldRoomId])
@@ -267,19 +267,19 @@ model Product {
 }
 
 model StockMovement {
-  id           String             @id @default(uuid())
+  id           String            @id @default(uuid())
   productId    String
   coldRoomId   String
   quantityKg   Float
   movementType StockMovementType
   reason       String
   createdBy    String
-  createdAt    DateTime           @default(now())
+  createdAt    DateTime          @default(now())
 
   // Relations
-  product      Product            @relation(fields: [productId], references: [id])
-  coldRoom     ColdRoom           @relation(fields: [coldRoomId], references: [id])
-  user         User               @relation("CreatedBy", fields: [createdBy], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+  coldRoom ColdRoom @relation(fields: [coldRoomId], references: [id])
+  user     User     @relation("CreatedBy", fields: [createdBy], references: [id])
 
   @@index([productId])
   @@index([coldRoomId])
@@ -304,11 +304,11 @@ model Order {
   deletedAt       DateTime?
 
   // Relations
-  client          User        @relation("ClientOrders", fields: [clientId], references: [id])
-  site            Site        @relation(fields: [siteId], references: [id])
-  approver        User?       @relation("ApprovedBy", fields: [approvedBy], references: [id])
-  items           OrderItem[]
-  invoice         Invoice?
+  client   User        @relation("ClientOrders", fields: [clientId], references: [id])
+  site     Site        @relation(fields: [siteId], references: [id])
+  approver User?       @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  items    OrderItem[]
+  invoice  Invoice?
 
   @@index([clientId])
   @@index([siteId])
@@ -327,8 +327,8 @@ model OrderItem {
   createdAt  DateTime @default(now())
 
   // Relations
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product    Product  @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
 
   @@index([orderId])
   @@index([productId])
@@ -353,11 +353,11 @@ model Invoice {
   deletedAt     DateTime?
 
   // Relations
-  order         Order?        @relation(fields: [orderId], references: [id])
-  rental        Rental?       @relation(fields: [rentalId], references: [id])
-  site          Site          @relation(fields: [siteId], references: [id])
-  items         InvoiceItem[]
-  payments      Payment[]
+  order    Order?        @relation(fields: [orderId], references: [id])
+  rental   Rental?       @relation(fields: [rentalId], references: [id])
+  site     Site          @relation(fields: [siteId], references: [id])
+  items    InvoiceItem[]
+  payments Payment[]
 
   @@index([invoiceNumber])
   @@index([clientId])
@@ -378,34 +378,34 @@ model InvoiceItem {
   createdAt   DateTime @default(now())
 
   // Relations
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@map("invoice_items")
 }
 
 model Payment {
-  id                     String        @id @default(uuid())
-  invoiceId              String
-  amount                 Float
-  paymentMethod          PaymentMethod
-  status                 PaymentStatus @default(PENDING)
-  momoTransactionRef     String?       @unique
-  transactionReference   String?
-  phoneNumber            String?
-  notes                  String?
-  paidAt                 DateTime?
-  markedPaidBy           String?       // User who manually marked as paid
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  id                    String        @id @default(uuid())
+  invoiceId             String
+  amount                Float
+  paymentMethod         PaymentMethod
+  status                PaymentStatus @default(PENDING)
+  paypackTransactionRef String?       @unique
+  transactionReference  String?
+  phoneNumber           String?
+  notes                 String?
+  paidAt                DateTime?
+  markedPaidBy          String? // User who manually marked as paid
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   // Relations
-  invoice                Invoice       @relation(fields: [invoiceId], references: [id])
-  markedPaidByUser       User?         @relation("MarkedPaidBy", fields: [markedPaidBy], references: [id])
+  invoice          Invoice @relation(fields: [invoiceId], references: [id])
+  markedPaidByUser User?   @relation("MarkedPaidBy", fields: [markedPaidBy], references: [id])
 
   @@index([invoiceId])
   @@index([status])
-  @@index([momoTransactionRef])
+  @@index([paypackTransactionRef])
   @@map("payments")
 }
 
@@ -429,12 +429,12 @@ model Rental {
   deletedAt       DateTime?
 
   // Relations
-  client          User         @relation("ClientRentals", fields: [clientId], references: [id])
-  site            Site         @relation(fields: [siteId], references: [id])
-  coldBox         ColdBox?     @relation(fields: [coldBoxId], references: [id])
-  coldPlate       ColdPlate?   @relation(fields: [coldPlateId], references: [id])
-  tricycle        Tricycle?    @relation(fields: [tricycleId], references: [id])
-  invoice         Invoice?
+  client    User       @relation("ClientRentals", fields: [clientId], references: [id])
+  site      Site       @relation(fields: [siteId], references: [id])
+  coldBox   ColdBox?   @relation(fields: [coldBoxId], references: [id])
+  coldPlate ColdPlate? @relation(fields: [coldPlateId], references: [id])
+  tricycle  Tricycle?  @relation(fields: [tricycleId], references: [id])
+  invoice   Invoice?
 
   @@index([clientId])
   @@index([siteId])
@@ -447,15 +447,15 @@ model Rental {
 
 model AuditLog {
   id         String      @id @default(uuid())
-  entityType String      // ORDER, INVOICE, PAYMENT, STOCK_MOVEMENT, etc.
+  entityType String // ORDER, INVOICE, PAYMENT, STOCK_MOVEMENT, etc.
   entityId   String
   action     AuditAction
   userId     String
-  details    Json?       // Flexible JSON for storing relevant data
+  details    Json? // Flexible JSON for storing relevant data
   timestamp  DateTime    @default(now())
 
   // Relations
-  user       User        @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 
   @@index([entityType, entityId])
   @@index([userId])
