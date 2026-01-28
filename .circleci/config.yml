@@ -11,8 +11,8 @@ executors:
         environment:
           NODE_ENV: test
           DATABASE_URL: postgresql://mofresh_test:test_password@localhost:5432/mofresh_test_db
-          JWT_SECRET: test_jwt_secret_key_minimum_32_characters_long
-          JWT_REFRESH_SECRET: test_jwt_refresh_secret_key_minimum_32_chars
+          JWT_SECRET: 
+          JWT_REFRESH_SECRET: 
           JWT_EXPIRES_IN: 1h
           JWT_REFRESH_EXPIRES_IN: 7d
           BCRYPT_ROUNDS: 4
@@ -121,7 +121,7 @@ jobs:
                 -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info \
                 -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/test/**,**/dist/**,**/node_modules/**"
             else
-              echo "⚠️  SONAR_TOKEN not set. Skipping SonarQube analysis."
+              echo "SONAR_TOKEN not set. Skipping SonarQube analysis."
               echo "Configure SONAR_TOKEN in CircleCI project settings to enable."
             fi
 
@@ -138,7 +138,7 @@ jobs:
               npm install -g coveralls
               cat coverage/lcov.info | coveralls
             else
-              echo "⚠️  COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
+              echo "COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
               echo "Configure COVERALLS_REPO_TOKEN in CircleCI project settings to enable."
             fi
 

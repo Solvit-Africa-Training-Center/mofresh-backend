@@ -1,10 +1,11 @@
 # MoFresh Backend API
 
-[![CircleCI](https://circleci.com/gh/Solvit-Africa-Training-Center/mofresh-backend.svg?style=shield)](https://circleci.com/gh/Solvit-Africa-Training-Center/mofresh-backend)
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/Solvit-Africa-Training-Center/mofresh-backend/tree/main.svg?style=shield)](https://dl.circleci.com/status-badge/redirect/gh/Solvit-Africa-Training-Center/mofresh-backend/tree/main)
 [![Coverage Status](https://coveralls.io/repos/github/Solvit-Africa-Training-Center/mofresh-backend/badge.svg?branch=main)](https://coveralls.io/github/Solvit-Africa-Training-Center/mofresh-backend?branch=main)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mofresh-backend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=mofresh-backend)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mofresh-backend&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=mofresh-backend)
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=mofresh-backend&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=mofresh-backend)
+
 
 Backend API for MoFresh, a cold chain management system for Rwanda's agricultural sector.
 
