@@ -155,8 +155,7 @@ jobs:
           name: Upload Coverage to Coveralls
           command: |
             if [ -n "$COVERALLS_REPO_TOKEN" ]; then
-              npm install -g coveralls
-              cat coverage/lcov.info | coveralls
+              npx coveralls < coverage/lcov.info
             else
               echo "COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
               echo "Configure COVERALLS_REPO_TOKEN in CircleCI project settings to enable."
