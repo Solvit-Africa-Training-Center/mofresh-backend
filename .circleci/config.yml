@@ -28,7 +28,11 @@ jobs:
   install-dependencies:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "package-lock.json" }}
@@ -48,7 +52,11 @@ jobs:
   lint:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -58,7 +66,11 @@ jobs:
   test:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -97,7 +109,11 @@ jobs:
   sonarqube:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -128,7 +144,11 @@ jobs:
   coveralls:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -145,7 +165,11 @@ jobs:
   build:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
