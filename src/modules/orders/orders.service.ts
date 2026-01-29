@@ -2,8 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateOrderDto, RejectOrderDto } from './dto';
 
@@ -138,12 +139,8 @@ export class OrdersService {
     }
 
     return await this.db.$transaction(async (tx) => {
-      // AIMEE: Uncomment this line when StockMovementService is ready
       // await this.stockMovementService.reserveStock(order.items, approverId);
-
-      // Temporary - remove when Aimee's service is integrated
       await this.reserveStock(tx, order.items, orderId, approverId);
-
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -256,16 +253,35 @@ export class OrdersService {
 
   async findAllOrders(
     siteId: string,
-    clientId?: string,
+    userRole: UserRole,
+    userId: string,
     status?: OrderStatus,
   ) {
+    const whereClause: any = {
+      deletedAt: null,
+    };
+
+    if (userRole === UserRole.SUPER_ADMIN) {
+      // Super admin can see all orders
+      if (status) whereClause.status = status;
+    } else if (userRole === UserRole.SITE_MANAGER) {
+      // Site manager can see all orders at their site
+      whereClause.siteId = siteId;
+      if (status) whereClause.status = status;
+    } else if (userRole === UserRole.CLIENT) {
+      // Client can only see their own orders
+      whereClause.clientId = userId;
+      whereClause.siteId = siteId;
+      if (status) whereClause.status = status;
+    } else {
+      // Default: restrict to user's own orders
+      whereClause.clientId = userId;
+      whereClause.siteId = siteId;
+      if (status) whereClause.status = status;
+    }
+
     return await this.db.order.findMany({
-      where: {
-        siteId,
-        ...(clientId && { clientId }),
-        ...(status && { status }),
-        deletedAt: null,
-      },
+      where: whereClause,
       include: {
         items: {
           include: {
@@ -300,13 +316,34 @@ export class OrdersService {
     });
   }
 
-  async findOne(orderId: string, siteId: string) {
+  async findOne(
+    orderId: string,
+    siteId: string,
+    userRole: UserRole,
+    userId: string,
+  ) {
+    const whereClause: any = {
+      id: orderId,
+      deletedAt: null,
+    };
+
+    if (userRole === UserRole.SUPER_ADMIN) {
+      // Super admin can view any order
+    } else if (userRole === UserRole.SITE_MANAGER) {
+      // Site manager can view any order at their site
+      whereClause.siteId = siteId;
+    } else if (userRole === UserRole.CLIENT) {
+      // Client can only view their own orders
+      whereClause.clientId = userId;
+      whereClause.siteId = siteId;
+    } else {
+      // Default: restrict to user's own orders
+      whereClause.clientId = userId;
+      whereClause.siteId = siteId;
+    }
+
     const order = await this.db.order.findFirst({
-      where: {
-        id: orderId,
-        siteId,
-        deletedAt: null,
-      },
+      where: whereClause,
       include: {
         items: {
           include: {
@@ -394,7 +431,12 @@ export class OrdersService {
     });
   }
 
-  async findByStatus(siteId: string, status: OrderStatus) {
-    return await this.findAllOrders(siteId, undefined, status);
+  async findByStatus(
+    siteId: string,
+    userRole: UserRole,
+    userId: string,
+    status: OrderStatus,
+  ) {
+    return await this.findAllOrders(siteId, userRole, userId, status);
   }
 }
