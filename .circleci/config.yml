@@ -11,8 +11,8 @@ executors:
         environment:
           NODE_ENV: test
           DATABASE_URL: postgresql://mofresh_test:test_password@localhost:5432/mofresh_test_db
-          JWT_SECRET: test_jwt_secret_key_minimum_32_characters_long
-          JWT_REFRESH_SECRET: test_jwt_refresh_secret_key_minimum_32_chars
+          JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing
+          JWT_REFRESH_SECRET: test-refresh-secret-minimum-32-characters-for-testing
           JWT_EXPIRES_IN: 1h
           JWT_REFRESH_EXPIRES_IN: 7d
           BCRYPT_ROUNDS: 4
@@ -28,7 +28,11 @@ jobs:
   install-dependencies:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "package-lock.json" }}
@@ -48,7 +52,11 @@ jobs:
   lint:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -58,7 +66,11 @@ jobs:
   test:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -97,7 +109,11 @@ jobs:
   sonarqube:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
@@ -121,31 +137,38 @@ jobs:
                 -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info \
                 -Dsonar.coverage.exclusions="**/*.spec.ts,**/*.test.ts,**/test/**,**/dist/**,**/node_modules/**"
             else
-              echo "⚠️  SONAR_TOKEN not set. Skipping SonarQube analysis."
+              echo "SONAR_TOKEN not set. Skipping SonarQube analysis."
               echo "Configure SONAR_TOKEN in CircleCI project settings to enable."
             fi
 
   coveralls:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
           name: Upload Coverage to Coveralls
           command: |
             if [ -n "$COVERALLS_REPO_TOKEN" ]; then
-              npm install -g coveralls
-              cat coverage/lcov.info | coveralls
+              npx coveralls < coverage/lcov.info
             else
-              echo "⚠️  COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
+              echo "COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
               echo "Configure COVERALLS_REPO_TOKEN in CircleCI project settings to enable."
             fi
 
   build:
     executor: node-postgres
     steps:
-      - checkout
+      - run:
+          name: Checkout code via HTTPS
+          command: |
+            git clone https://github.com/Solvit-Africa-Training-Center/mofresh-backend.git .
+            git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
       - run:
