@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { OrderStatus, UserRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateOrderDto, RejectOrderDto } from './dto';
+import { paginate } from '../../common/utils/paginator';
 
 // import { StockMovementService } from '../stock-movements/stock-movements.service';
 
@@ -131,74 +132,44 @@ export class OrdersService {
       );
     }
 
-    return await this.db.$transaction(async (tx) => {
-      // await this.stockMovementService.reserveStock(order.items, approverId);
-      await this.reserveStock(tx, order.items, orderId, approverId);
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: OrderStatus.APPROVED,
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
+    try {
+      return await this.db.$transaction(async (tx) => {
+        // ========================================================================
+        // TODO: Uncomment after Aimee creates StockMovementsService.reserveStockForOrder()
+        // ========================================================================
+        // await this.stockMovementService.reserveStockForOrder(
+        //   tx,
+        //   order.items.map(item => ({
+        //     productId: item.productId,
+        //     quantityKg: item.quantityKg,
+        //   })),
+        //   orderId,
+        //   approverId,
+        // );
+
+        const updatedOrder = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: OrderStatus.APPROVED,
+            approvedBy: approverId,
+            approvedAt: new Date(),
           },
-          client: true,
-        },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+            client: true,
+          },
+        });
+
+        // await this.invoiceService.generateOrderInvoice(orderId);
+
+        return updatedOrder;
       });
-
-      // await this.invoiceService.generateOrderInvoice(orderId);
-
-      return updatedOrder;
-    });
-  }
-
-  private async reserveStock(
-    tx: Prisma.TransactionClient,
-    items: Array<{ productId: string; quantityKg: number }>,
-    orderId: string,
-    approverId: string,
-  ) {
-    for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { quantityKg: true, coldRoomId: true, name: true },
-      });
-
-      if (!product || product.quantityKg < item.quantityKg) {
-        throw new BadRequestException(
-          `Insufficient stock for "${product?.name || item.productId}"`,
-        );
-      }
-
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          quantityKg: { decrement: item.quantityKg },
-        },
-      });
-
-      await tx.stockMovement.create({
-        data: {
-          productId: item.productId,
-          coldRoomId: product.coldRoomId,
-          quantityKg: item.quantityKg,
-          movementType: 'OUT',
-          reason: `Order ${orderId} approved - stock reserved`,
-          createdBy: approverId,
-        },
-      });
-
-      await tx.coldRoom.update({
-        where: { id: product.coldRoomId },
-        data: {
-          usedCapacityKg: { decrement: item.quantityKg },
-        },
-      });
+    } catch (error) {
+      throw new BadRequestException(`Failed to approve order: ${(error as any).message}`);
     }
   }
 
@@ -239,32 +210,28 @@ export class OrdersService {
     });
   }
 
-  async findAllOrders(siteId: string, userRole: UserRole, userId: string, status?: OrderStatus) {
+  async findAllOrders(
+    siteId: string,
+    userRole: UserRole,
+    userId: string,
+    status?: OrderStatus,
+    page?: number,
+    limit?: number,
+  ) {
     const whereClause: Prisma.OrderWhereInput = {
       deletedAt: null,
+      ...this.getRoleBasedFilter(siteId, userRole, userId),
     };
 
-    if (userRole === UserRole.SUPER_ADMIN) {
-      // Super admin can see all orders
-      if (status) whereClause.status = status;
-    } else if (userRole === UserRole.SITE_MANAGER) {
-      // Site manager can see all orders at their site
-      whereClause.siteId = siteId;
-      if (status) whereClause.status = status;
-    } else if (userRole === UserRole.CLIENT) {
-      // Client can only see their own orders
-      whereClause.clientId = userId;
-      whereClause.siteId = siteId;
-      if (status) whereClause.status = status;
-    } else {
-      // Default: restrict to user's own orders
-      whereClause.clientId = userId;
-      whereClause.siteId = siteId;
-      if (status) whereClause.status = status;
+    if (status) {
+      whereClause.status = status;
     }
 
-    return await this.db.order.findMany({
+    return await paginate(this.db.order, {
       where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      page,
+      limit,
       include: {
         items: {
           include: {
@@ -293,9 +260,6 @@ export class OrdersService {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
     });
   }
 
@@ -303,22 +267,8 @@ export class OrdersService {
     const whereClause: Prisma.OrderWhereInput = {
       id: orderId,
       deletedAt: null,
+      ...this.getRoleBasedFilter(siteId, userRole, userId),
     };
-
-    if (userRole === UserRole.SUPER_ADMIN) {
-      // Super admin can view any order
-    } else if (userRole === UserRole.SITE_MANAGER) {
-      // Site manager can view any order at their site
-      whereClause.siteId = siteId;
-    } else if (userRole === UserRole.CLIENT) {
-      // Client can only view their own orders
-      whereClause.clientId = userId;
-      whereClause.siteId = siteId;
-    } else {
-      // Default: restrict to user's own orders
-      whereClause.clientId = userId;
-      whereClause.siteId = siteId;
-    }
 
     const order = await this.db.order.findFirst({
       where: whereClause,
@@ -407,5 +357,25 @@ export class OrdersService {
 
   async findByStatus(siteId: string, userRole: UserRole, userId: string, status: OrderStatus) {
     return await this.findAllOrders(siteId, userRole, userId, status);
+  }
+
+  private getRoleBasedFilter(
+    siteId: string,
+    userRole: UserRole,
+    userId: string,
+  ): Prisma.OrderWhereInput {
+    if (userRole === UserRole.SUPER_ADMIN) {
+      return {};
+    }
+
+    if (userRole === UserRole.SITE_MANAGER) {
+      return { siteId };
+    }
+
+    // Default for CLIENT and others
+    return {
+      clientId: userId,
+      siteId,
+    };
   }
 }

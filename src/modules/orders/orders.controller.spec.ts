@@ -91,6 +91,8 @@ describe('OrdersController', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         undefined,
+        undefined,
+        undefined,
       );
     });
 
@@ -110,6 +112,8 @@ describe('OrdersController', () => {
         'site-123',
         UserRole.CLIENT,
         'client-123',
+        undefined,
+        undefined,
         undefined,
       );
     });
@@ -134,6 +138,8 @@ describe('OrdersController', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         OrderStatus.APPROVED,
+        undefined,
+        undefined,
       );
     });
   });

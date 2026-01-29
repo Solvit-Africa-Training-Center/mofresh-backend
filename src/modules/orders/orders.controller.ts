@@ -5,12 +5,11 @@ import { CreateOrderDto, RejectOrderDto } from './dto';
 import { OrderStatus, UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
-
 @ApiTags('Orders')
 @ApiBearerAuth()
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   @Post()
   @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
@@ -23,7 +22,7 @@ export class OrdersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all orders ' })
+  @ApiOperation({ summary: 'Get all orders with pagination' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiQuery({
     name: 'status',
@@ -31,12 +30,31 @@ export class OrdersController {
     required: false,
     description: 'Filter by order status',
   })
-  async findAll(@CurrentUser() user: CurrentUserPayload, @Query('status') status?: OrderStatus) {
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10, max: 100)',
+  })
+  async findAll(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('status') status?: OrderStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
     return await this.ordersService.findAllOrders(
       user.siteId,
       user.role as UserRole,
       user.userId,
       status,
+      page,
+      limit,
     );
   }
 
