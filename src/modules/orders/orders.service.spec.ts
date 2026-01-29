@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { OrdersService } from './orders.service';
 import { PrismaService } from '../../database/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, UserRole } from '@prisma/client';
 
 describe('OrdersService', () => {
     let service: OrdersService;
@@ -248,7 +248,7 @@ describe('OrdersService', () => {
 
             mockPrismaService.order.findMany.mockResolvedValue(mockOrders);
 
-            const result = await service.findAllOrders(siteId);
+            const result = await service.findAllOrders(siteId, UserRole.SITE_MANAGER, 'manager-123');
 
             expect(result).toHaveLength(2);
             expect(mockPrismaService.order.findMany).toHaveBeenCalledWith(
@@ -263,7 +263,7 @@ describe('OrdersService', () => {
 
             mockPrismaService.order.findMany.mockResolvedValue(mockOrders);
 
-            await service.findAllOrders(siteId, undefined, OrderStatus.REQUESTED);
+            await service.findAllOrders(siteId, UserRole.SITE_MANAGER, 'manager-123', OrderStatus.REQUESTED);
 
             expect(mockPrismaService.order.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -284,7 +284,7 @@ describe('OrdersService', () => {
             const mockOrder = { id: orderId, siteId };
             mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
 
-            const result = await service.findOne(orderId, siteId);
+            const result = await service.findOne(orderId, siteId, UserRole.SITE_MANAGER, 'manager-123');
 
             expect(result).toEqual(mockOrder);
         });
@@ -292,7 +292,7 @@ describe('OrdersService', () => {
         it('should throw error if order not found', async () => {
             mockPrismaService.order.findFirst.mockResolvedValue(null);
 
-            await expect(service.findOne(orderId, siteId)).rejects.toThrow(
+            await expect(service.findOne(orderId, siteId, UserRole.CLIENT, 'client-123')).rejects.toThrow(
                 NotFoundException,
             );
         });
@@ -420,9 +420,133 @@ describe('OrdersService', () => {
 
             const findAllSpy = jest.spyOn(service, 'findAllOrders');
 
-            await service.findByStatus(siteId, OrderStatus.REQUESTED);
+            await service.findByStatus(siteId, UserRole.SITE_MANAGER, 'manager-123', OrderStatus.REQUESTED);
 
-            expect(findAllSpy).toHaveBeenCalledWith(siteId, undefined, OrderStatus.REQUESTED);
+            expect(findAllSpy).toHaveBeenCalledWith(siteId, UserRole.SITE_MANAGER, 'manager-123', OrderStatus.REQUESTED);
+        });
+    });
+
+    describe('findAllOrders - role-based filtering', () => {
+        const siteId = 'site-123';
+        const clientId = 'client-123';
+        const managerId = 'manager-123';
+
+        it('should filter orders for CLIENT role', async () => {
+            const mockOrders = [{ id: 'order-1', clientId, status: OrderStatus.REQUESTED }];
+            mockPrismaService.order.findMany.mockResolvedValue(mockOrders);
+
+            await service.findAllOrders(siteId, UserRole.CLIENT, clientId);
+
+            expect(mockPrismaService.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        clientId,
+                        siteId,
+                    }),
+                }),
+            );
+        });
+
+        it('should show all site orders for SITE_MANAGER role', async () => {
+            const mockOrders = [
+                { id: 'order-1', clientId: 'client-1' },
+                { id: 'order-2', clientId: 'client-2' },
+            ];
+            mockPrismaService.order.findMany.mockResolvedValue(mockOrders);
+
+            await service.findAllOrders(siteId, UserRole.SITE_MANAGER, managerId);
+
+            expect(mockPrismaService.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        siteId,
+                    }),
+                }),
+            );
+        });
+
+        it('should show all orders for SUPER_ADMIN role', async () => {
+            const mockOrders = [
+                { id: 'order-1', siteId: 'site-1' },
+                { id: 'order-2', siteId: 'site-2' },
+            ];
+            mockPrismaService.order.findMany.mockResolvedValue(mockOrders);
+
+            await service.findAllOrders(siteId, UserRole.SUPER_ADMIN, 'admin-123');
+
+            expect(mockPrismaService.order.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.not.objectContaining({
+                        siteId,
+                    }),
+                }),
+            );
+        });
+    });
+
+    describe('findOne - role-based authorization', () => {
+        const orderId = 'order-123';
+        const siteId = 'site-123';
+        const clientId = 'client-123';
+        const otherClientId = 'other-client-123';
+
+        it('should allow CLIENT to view their own order', async () => {
+            const mockOrder = { id: orderId, clientId, siteId };
+            mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
+
+            const result = await service.findOne(orderId, siteId, UserRole.CLIENT, clientId);
+
+            expect(result).toEqual(mockOrder);
+            expect(mockPrismaService.order.findFirst).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        id: orderId,
+                        clientId,
+                        siteId,
+                    }),
+                }),
+            );
+        });
+
+        it('should prevent CLIENT from viewing another client order', async () => {
+            mockPrismaService.order.findFirst.mockResolvedValue(null);
+
+            await expect(
+                service.findOne(orderId, siteId, UserRole.CLIENT, otherClientId),
+            ).rejects.toThrow(NotFoundException);
+        });
+
+        it('should allow SITE_MANAGER to view any order at their site', async () => {
+            const mockOrder = { id: orderId, clientId, siteId };
+            mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
+
+            const result = await service.findOne(orderId, siteId, UserRole.SITE_MANAGER, 'manager-123');
+
+            expect(result).toEqual(mockOrder);
+            expect(mockPrismaService.order.findFirst).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        id: orderId,
+                        siteId,
+                    }),
+                }),
+            );
+        });
+
+        it('should allow SUPER_ADMIN to view any order', async () => {
+            const mockOrder = { id: orderId, clientId, siteId };
+            mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
+
+            const result = await service.findOne(orderId, siteId, UserRole.SUPER_ADMIN, 'admin-123');
+
+            expect(result).toEqual(mockOrder);
+            expect(mockPrismaService.order.findFirst).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        id: orderId,
+                    }),
+                }),
+            );
         });
     });
 
