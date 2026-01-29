@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
-import { OrderStatus, UserRole } from '@prisma/client';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { OrderStatus, UserRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateOrderDto, RejectOrderDto } from './dto';
 
@@ -18,9 +13,9 @@ export class OrdersService {
     private readonly db: PrismaService,
     // private readonly stockMovementService: StockMovementService,
     // private readonly invoiceService: InvoicesService,
-  ) { }
+  ) {}
 
-  async createOrders(clientId: string, siteId: string, createOrderDto: CreateOrderDto,) {
+  async createOrders(clientId: string, siteId: string, createOrderDto: CreateOrderDto) {
     const { deliveryAddress, notes, items } = createOrderDto;
     const productIds = [...new Set(items.map((item) => item.productId))];
 
@@ -41,9 +36,7 @@ export class OrdersService {
 
     if (products.length !== productIds.length) {
       const foundProductIds = products.map((p) => p.id);
-      const missingProductIds = productIds.filter(
-        (id) => !foundProductIds.includes(id),
-      );
+      const missingProductIds = productIds.filter((id) => !foundProductIds.includes(id));
       throw new BadRequestException(
         `The following products are not available at this site: ${missingProductIds.join(', ')}`,
       );
@@ -158,7 +151,6 @@ export class OrdersService {
         },
       });
 
-
       // await this.invoiceService.generateOrderInvoice(orderId);
 
       return updatedOrder;
@@ -166,8 +158,8 @@ export class OrdersService {
   }
 
   private async reserveStock(
-    tx: any,
-    items: any[],
+    tx: Prisma.TransactionClient,
+    items: Array<{ productId: string; quantityKg: number }>,
     orderId: string,
     approverId: string,
   ) {
@@ -210,11 +202,7 @@ export class OrdersService {
     }
   }
 
-  async rejectOrders(
-    orderId: string,
-    siteId: string,
-    rejectOrderDto: RejectOrderDto,
-  ) {
+  async rejectOrders(orderId: string, siteId: string, rejectOrderDto: RejectOrderDto) {
     const order = await this.db.order.findFirst({
       where: {
         id: orderId,
@@ -251,13 +239,8 @@ export class OrdersService {
     });
   }
 
-  async findAllOrders(
-    siteId: string,
-    userRole: UserRole,
-    userId: string,
-    status?: OrderStatus,
-  ) {
-    const whereClause: any = {
+  async findAllOrders(siteId: string, userRole: UserRole, userId: string, status?: OrderStatus) {
+    const whereClause: Prisma.OrderWhereInput = {
       deletedAt: null,
     };
 
@@ -316,13 +299,8 @@ export class OrdersService {
     });
   }
 
-  async findOne(
-    orderId: string,
-    siteId: string,
-    userRole: UserRole,
-    userId: string,
-  ) {
-    const whereClause: any = {
+  async findOne(orderId: string, siteId: string, userRole: UserRole, userId: string) {
+    const whereClause: Prisma.OrderWhereInput = {
       id: orderId,
       deletedAt: null,
     };
@@ -384,11 +362,7 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(
-    orderId: string,
-    siteId: string,
-    newStatus: OrderStatus,
-  ) {
+  async updateStatus(orderId: string, siteId: string, newStatus: OrderStatus) {
     const order = await this.db.order.findFirst({
       where: {
         id: orderId,
@@ -431,12 +405,7 @@ export class OrdersService {
     });
   }
 
-  async findByStatus(
-    siteId: string,
-    userRole: UserRole,
-    userId: string,
-    status: OrderStatus,
-  ) {
+  async findByStatus(siteId: string, userRole: UserRole, userId: string, status: OrderStatus) {
     return await this.findAllOrders(siteId, userRole, userId, status);
   }
 }
