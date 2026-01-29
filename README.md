@@ -11,7 +11,7 @@ Backend API for MoFresh, a cold chain management system for Rwanda's agricultura
 
 ## Overview
 
-MoFresh Backend is a NestJS-based REST API that manages cold chain operations across three physical sites in Rwanda (Kigali, Musanze, and Rubavu). The system handles product inventory, cold room capacity tracking, order processing, automated invoicing, and payment integration with Paypack Rwanda.
+MoFresh Backend is a NestJS-based REST API that manages cold chain operations across three physical sites in Rwanda (Kigali, Musanze, and Rubavu). The system handles product inventory, cold room capacity tracking, order processing, automated invoicing, and payment integration with MOMO Rwanda.
 
 ## Technology Stack
 
@@ -20,7 +20,7 @@ MoFresh Backend is a NestJS-based REST API that manages cold chain operations ac
 - **Database**: PostgreSQL 15+
 - **ORM**: Prisma 6.x
 - **Authentication**: JWT with bcrypt
-- **Payment Integration**: Paypack Rwanda
+- **Payment Integration**: MOMO SandBox
 - **Documentation**: Swagger/OpenAPI
 - **Testing**: Jest with Supertest
 
@@ -140,11 +140,11 @@ CORS_ORIGIN="http://localhost:3001"
 THROTTLE_TTL="60"
 THROTTLE_LIMIT="100"
 
-# Payment Integration (Paypack Rwanda)
-PAYPACK_CLIENT_ID="your-client-id"
-PAYPACK_CLIENT_SECRET="your-client-secret"
-PAYPACK_API_URL="https://payments.paypack.rw/api"
-PAYPACK_WEBHOOK_SECRET="your-webhook-secret"
+# Payment Integration (MOMO SandBox)
+MOMO_SANDBOX_CLIENT_ID="your-client-id"
+MOMO_SANDBOX_CLIENT_SECRET="your-client-secret"
+MOMO_SANDBOX_API_URL="https://momodeveloper.mtn.com/api-documentation"
+MOMO_SANDBOX_WEBHOOK_SECRET="your-webhook-secret"
 ```
 
 ## Available Scripts
@@ -273,7 +273,7 @@ The database uses PostgreSQL with Prisma ORM. Key entities include:
 - **Products**: Inventory items with stock tracking
 - **Orders**: Customer orders with approval workflow
 - **Invoices**: Auto-generated billing documents
-- **Payments**: Payment processing via Paypack
+- **Payments**: Payment processing via MOMO
 - **Rentals**: Cold box, cold plate, and tricycle rentals
 - **Audit Logs**: Complete activity tracking
 
@@ -379,7 +379,7 @@ Before deploying to production:
 
 - [ ] Configure production database
 - [ ] Set strong JWT secrets
-- [ ] Configure Paypack credentials
+- [ ] Configure MOMO credentials
 - [ ] Enable HTTPS/TLS
 - [ ] Set up database backups
 - [ ] Configure proper CORS origins
