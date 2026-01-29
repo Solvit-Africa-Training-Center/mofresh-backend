@@ -13,7 +13,7 @@ export class OrdersService {
     private readonly db: PrismaService,
     // private readonly stockMovementService: StockMovementService,
     // private readonly invoiceService: InvoicesService,
-  ) {}
+  ) { }
 
   async createOrders(clientId: string, siteId: string, createOrderDto: CreateOrderDto) {
     const { deliveryAddress, notes, items } = createOrderDto;
