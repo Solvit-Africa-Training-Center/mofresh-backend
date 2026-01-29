@@ -3,6 +3,11 @@ import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class StockMovementsService {
+  getHistory: any;
+    revertMovement: any;
+  recordMovement(productId: string, quantityKg: number, movementType: string, reason: string, userId: any) {
+      throw new Error('Method not implemented.');
+  }
   constructor(private readonly prisma: PrismaService) {}
 
  
@@ -21,8 +26,9 @@ export class StockMovementsService {
 
     const where: any = {};
 
-    // Site scoping
+  
     if (user.role !== 'SUPER_ADMIN') {
+
       // Get products for this site only
       where.product = {
         siteId: user.siteId
@@ -71,11 +77,10 @@ export class StockMovementsService {
     };
   }
 
-  /**
-   * GET MOVEMENT HISTORY FOR A SPECIFIC PRODUCT
-   */
+  
   async findByProduct(productId: string, user: any) {
-    // Verify product exists and user has access
+   
+    
     const product = await this.prisma.product.findUnique({
       where: { id: productId }
     });
