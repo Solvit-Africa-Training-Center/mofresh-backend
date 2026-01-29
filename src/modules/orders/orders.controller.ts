@@ -95,15 +95,31 @@ export class OrdersController {
   @Get('status/:status')
   @ApiOperation({ summary: 'Get orders by status' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10, max: 100)',
+  })
   async findByStatus(
     @Param('status') status: OrderStatus,
     @CurrentUser() user: CurrentUserPayload,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     return await this.ordersService.findByStatus(
       user.siteId,
       user.role as UserRole,
       user.userId,
       status,
+      page,
+      limit,
     );
   }
 }

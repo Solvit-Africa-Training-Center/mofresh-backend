@@ -422,6 +422,8 @@ describe('OrdersService', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         OrderStatus.REQUESTED,
+        1,
+        10,
       );
 
       expect(findAllSpy).toHaveBeenCalledWith(
@@ -429,6 +431,8 @@ describe('OrdersService', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         OrderStatus.REQUESTED,
+        1,
+        10,
       );
     });
   });

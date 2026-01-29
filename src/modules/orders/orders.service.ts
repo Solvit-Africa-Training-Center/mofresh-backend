@@ -16,6 +16,23 @@ export class OrdersService {
     // private readonly invoiceService: InvoicesService,
   ) { }
 
+
+  private getRoleBasedFilter(siteId: string, userRole: UserRole, userId: string,):
+    Prisma.OrderWhereInput {
+    if (userRole === UserRole.SUPER_ADMIN) {
+      return {};
+    }
+
+    if (userRole === UserRole.SITE_MANAGER) {
+      return { siteId };
+    }
+
+    return {
+      clientId: userId,
+      siteId,
+    };
+  }
+
   async createOrders(clientId: string, siteId: string, createOrderDto: CreateOrderDto) {
     const { deliveryAddress, notes, items } = createOrderDto;
     const productIds = [...new Set(items.map((item) => item.productId))];
@@ -132,44 +149,74 @@ export class OrdersService {
       );
     }
 
-    try {
-      return await this.db.$transaction(async (tx) => {
-        // ========================================================================
-        // TODO: Uncomment after Aimee creates StockMovementsService.reserveStockForOrder()
-        // ========================================================================
-        // await this.stockMovementService.reserveStockForOrder(
-        //   tx,
-        //   order.items.map(item => ({
-        //     productId: item.productId,
-        //     quantityKg: item.quantityKg,
-        //   })),
-        //   orderId,
-        //   approverId,
-        // );
-
-        const updatedOrder = await tx.order.update({
-          where: { id: orderId },
-          data: {
-            status: OrderStatus.APPROVED,
-            approvedBy: approverId,
-            approvedAt: new Date(),
-          },
-          include: {
-            items: {
-              include: {
-                product: true,
-              },
+    return await this.db.$transaction(async (tx) => {
+      // await this.stockMovementService.reserveStock(order.items, approverId);
+      await this.reserveStock(tx, order.items, orderId, approverId);
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.APPROVED,
+          approvedBy: approverId,
+          approvedAt: new Date(),
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
             },
-            client: true,
           },
-        });
-
-        // await this.invoiceService.generateOrderInvoice(orderId);
-
-        return updatedOrder;
+          client: true,
+        },
       });
-    } catch (error) {
-      throw new BadRequestException(`Failed to approve order: ${(error as any).message}`);
+
+      // await this.invoiceService.generateOrderInvoice(orderId);
+
+      return updatedOrder;
+    });
+  }
+
+  private async reserveStock(
+    tx: Prisma.TransactionClient,
+    items: Array<{ productId: string; quantityKg: number }>,
+    orderId: string,
+    approverId: string,
+  ) {
+    for (const item of items) {
+      const product = await tx.product.findUnique({
+        where: { id: item.productId },
+        select: { quantityKg: true, coldRoomId: true, name: true },
+      });
+
+      if (!product || product.quantityKg < item.quantityKg) {
+        throw new BadRequestException(
+          `Insufficient stock for "${product?.name || item.productId}"`,
+        );
+      }
+
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          quantityKg: { decrement: item.quantityKg },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          productId: item.productId,
+          coldRoomId: product.coldRoomId,
+          quantityKg: item.quantityKg,
+          movementType: 'OUT',
+          reason: `Order ${orderId} approved - stock reserved`,
+          createdBy: approverId,
+        },
+      });
+
+      await tx.coldRoom.update({
+        where: { id: product.coldRoomId },
+        data: {
+          usedCapacityKg: { decrement: item.quantityKg },
+        },
+      });
     }
   }
 
@@ -355,27 +402,16 @@ export class OrdersService {
     });
   }
 
-  async findByStatus(siteId: string, userRole: UserRole, userId: string, status: OrderStatus) {
-    return await this.findAllOrders(siteId, userRole, userId, status);
-  }
-
-  private getRoleBasedFilter(
+  async findByStatus(
     siteId: string,
     userRole: UserRole,
     userId: string,
-  ): Prisma.OrderWhereInput {
-    if (userRole === UserRole.SUPER_ADMIN) {
-      return {};
-    }
-
-    if (userRole === UserRole.SITE_MANAGER) {
-      return { siteId };
-    }
-
-    // Default for CLIENT and others
-    return {
-      clientId: userId,
-      siteId,
-    };
+    status: OrderStatus,
+    page?: number,
+    limit?: number,
+  ) {
+    return await this.findAllOrders(siteId, userRole, userId, status, page, limit);
   }
+
+
 }

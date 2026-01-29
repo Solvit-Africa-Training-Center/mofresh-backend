@@ -83,7 +83,7 @@ describe('OrdersController', () => {
 
       mockOrdersService.findAllOrders.mockResolvedValue(mockOrders);
 
-      const result = await controller.findAll(mockUser);
+      const result = await controller.findAll(mockUser, undefined, 1, 10);
 
       expect(result).toEqual(mockOrders);
       expect(service.findAllOrders).toHaveBeenCalledWith(
@@ -91,8 +91,8 @@ describe('OrdersController', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         undefined,
-        undefined,
-        undefined,
+        1,
+        10,
       );
     });
 
@@ -106,15 +106,15 @@ describe('OrdersController', () => {
 
       mockOrdersService.findAllOrders.mockResolvedValue([]);
 
-      await controller.findAll(mockUser);
+      await controller.findAll(mockUser, undefined, 1, 10);
 
       expect(service.findAllOrders).toHaveBeenCalledWith(
         'site-123',
         UserRole.CLIENT,
         'client-123',
         undefined,
-        undefined,
-        undefined,
+        1,
+        10,
       );
     });
 
@@ -231,7 +231,12 @@ describe('OrdersController', () => {
 
       mockOrdersService.findByStatus.mockResolvedValue(mockOrders);
 
-      const result = await controller.findByStatus(OrderStatus.REQUESTED, mockUser);
+      const result = await controller.findByStatus(
+        OrderStatus.REQUESTED,
+        mockUser,
+        1,
+        10,
+      );
 
       expect(result).toEqual(mockOrders);
       expect(service.findByStatus).toHaveBeenCalledWith(
@@ -239,6 +244,8 @@ describe('OrdersController', () => {
         UserRole.SITE_MANAGER,
         'manager-123',
         OrderStatus.REQUESTED,
+        1,
+        10,
       );
     });
   });
