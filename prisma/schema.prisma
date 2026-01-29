@@ -390,7 +390,7 @@ model Payment {
   amount                 Float
   paymentMethod          PaymentMethod
   status                 PaymentStatus @default(PENDING)
-  paypackTransactionRef  String?       @unique
+  momoTransactionRef     String?       @unique
   transactionReference   String?
   phoneNumber            String?
   notes                  String?
@@ -405,7 +405,7 @@ model Payment {
 
   @@index([invoiceId])
   @@index([status])
-  @@index([paypackTransactionRef])
+  @@index([momoTransactionRef])
   @@map("payments")
 }
 

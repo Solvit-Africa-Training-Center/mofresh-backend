@@ -11,7 +11,7 @@ Backend API for MoFresh, a cold chain management system for Rwanda's agricultura
 
 ## Overview
 
-MoFresh Backend is a NestJS-based REST API that manages cold chain operations across three physical sites in Rwanda (Kigali, Musanze, and Rubavu). The system handles product inventory, cold room capacity tracking, order processing, automated invoicing, and payment integration with MOMO Rwanda.
+MoFresh Backend is a NestJS-based REST API that manages cold chain operations across three physical sites in Rwanda (Kigali, Musanze, and Rubavu). The system handles product inventory, cold room capacity tracking, order processing, automated invoicing, and payment integration with MTN Mobile Money (MoMo) Sandbox.
 
 ## Technology Stack
 
@@ -20,7 +20,7 @@ MoFresh Backend is a NestJS-based REST API that manages cold chain operations ac
 - **Database**: PostgreSQL 15+
 - **ORM**: Prisma 6.x
 - **Authentication**: JWT with bcrypt
-- **Payment Integration**: MOMO SandBox
+- **Payment Integration**: MTN Mobile Money (MoMo) Sandbox
 - **Documentation**: Swagger/OpenAPI
 - **Testing**: Jest with Supertest
 
@@ -140,11 +140,13 @@ CORS_ORIGIN="http://localhost:3001"
 THROTTLE_TTL="60"
 THROTTLE_LIMIT="100"
 
-# Payment Integration (MOMO SandBox)
-MOMO_SANDBOX_CLIENT_ID="your-client-id"
-MOMO_SANDBOX_CLIENT_SECRET="your-client-secret"
-MOMO_SANDBOX_API_URL="https://momodeveloper.mtn.com/api-documentation"
-MOMO_SANDBOX_WEBHOOK_SECRET="your-webhook-secret"
+# Payment Integration (MTN Mobile Money Sandbox)
+MOMO_API_USER="your-api-user"
+MOMO_API_KEY="your-api-key"
+MOMO_PRIMARY_KEY="your-primary-key"
+MOMO_API_URL="https://sandbox.momodeveloper.mtn.com"
+MOMO_CALLBACK_URL="your-callback-url"
+MOMO_ENVIRONMENT="sandbox"
 ```
 
 ## Available Scripts
@@ -273,7 +275,7 @@ The database uses PostgreSQL with Prisma ORM. Key entities include:
 - **Products**: Inventory items with stock tracking
 - **Orders**: Customer orders with approval workflow
 - **Invoices**: Auto-generated billing documents
-- **Payments**: Payment processing via MOMO
+- **Payments**: Payment processing via MTN Mobile Money (MoMo)
 - **Rentals**: Cold box, cold plate, and tricycle rentals
 - **Audit Logs**: Complete activity tracking
 
@@ -379,7 +381,7 @@ Before deploying to production:
 
 - [ ] Configure production database
 - [ ] Set strong JWT secrets
-- [ ] Configure MOMO credentials
+- [ ] Configure MTN MoMo production credentials
 - [ ] Enable HTTPS/TLS
 - [ ] Set up database backups
 - [ ] Configure proper CORS origins

@@ -19,7 +19,7 @@ if [ ! -f .env ]; then
     echo "   - DB_PASSWORD"
     echo "   - JWT_SECRET (min 32 characters)"
     echo "   - JWT_REFRESH_SECRET"
-    echo "   - PAYPACK credentials"
+    echo "   - MOMO_SANDBOX credentials"
     echo ""
     read -p "Press Enter after updating .env file..."
 else
