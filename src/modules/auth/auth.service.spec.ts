@@ -1,71 +1,65 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../mail/mail.service';
-import { UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { randomInt } from 'crypto';
-import { HashingUtil } from '../../common/utils/hashing.util';
+import { UserRole } from '@prisma/client';
 
-jest.mock('crypto');
+const MOCK_USER_ID = 'user-123';
+const MOCK_EMAIL = 'test@example.com';
+const MOCK_OTP_CODE = '123456';
+const DUMMY_HASH = '$2b$10$dummy_hash_for_testing';
+const MOCK_JWT_TOKEN = 'mocked_jwt_token';
 
 describe('AuthService', () => {
-  let authService: AuthService;
-  let prismaService: PrismaService;
-  let jwtService: JwtService;
-  let mailService: MailService;
+  let service: AuthService;
+  let prisma: PrismaService;
+
+  const mockPrisma = {
+    user: { findFirst: jest.fn(), findUnique: jest.fn() },
+    otp: { findFirst: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
+  };
+
+  const mockJwtService = { sign: jest.fn() };
+  const mockMailService = { sendOtpEmail: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        {
-          provide: PrismaService,
-          useValue: {
-            user: { findFirst: jest.fn(), findUnique: jest.fn() },
-            otp: { create: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() },
-          },
-        },
-        {
-          provide: JwtService,
-          useValue: {
-            sign: jest.fn(),
-          },
-        },
-        {
-          provide: MailService,
-          useValue: { sendOtpEmail: jest.fn() },
-        },
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: JwtService, useValue: mockJwtService },
+        { provide: MailService, useValue: mockMailService },
       ],
     }).compile();
 
-    authService = module.get<AuthService>(AuthService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    jwtService = module.get<JwtService>(JwtService);
-    mailService = module.get<MailService>(MailService);
-  });
-
-  afterEach(() => {
+    service = module.get<AuthService>(AuthService);
+    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
   describe('verifyOtp', () => {
-    it('should return a success response with a JWT token if OTP is valid', async () => {
-      const user = { id: '1', email: 'test@example.com', role: 'user', password: 'hashedpassword' };
-      const otp = { email: 'test@example.com', code: '123456', expiresAt: new Date(Date.now() + 100000) };
+    it('should return success and a token if OTP is valid', async () => {
+      mockPrisma.otp.findFirst.mockResolvedValue({
+        email: MOCK_EMAIL,
+        code: MOCK_OTP_CODE,
+        expiresAt: new Date(Date.now() + 60000),
+      });
 
-     
-      (prismaService.otp.findFirst as jest.Mock).mockResolvedValue(otp); 
-      (prismaService.user.findUnique as jest.Mock).mockResolvedValue(user);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: MOCK_USER_ID,
+        email: MOCK_EMAIL,
+        role: UserRole.CLIENT,
+        password: DUMMY_HASH,
+        deletedAt: null,
+      });
 
-     
-      (jwtService.sign as jest.Mock).mockReturnValue('mocked_jwt_token'); 
-
-      const result = await authService.verifyOtp('test@example.com', '123456');
+      mockJwtService.sign.mockReturnValue(MOCK_JWT_TOKEN);
+      const result = await service.verifyOtp(MOCK_EMAIL, MOCK_OTP_CODE);
 
       expect(result.status).toBe('success');
-      expect(result.token).toBe('mocked_jwt_token');
-      expect(result.user.email).toBe('test@example.com');
+      expect(result.token).toBe(MOCK_JWT_TOKEN);
+      expect(result.user).not.toHaveProperty('password');
     });
   });
 });

@@ -13,7 +13,7 @@ export class AuditLogsService {
     entityId: string,
     action: AuditAction,
     userId: string,
-    details?: any
+    details?: any,
   ): Promise<AuditLogEntity> {
     const userExists = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -23,7 +23,6 @@ export class AuditLogsService {
       throw new BadRequestException('User not found');
     }
 
-  
     const createdAuditLog = await this.prisma.auditLog.create({
       data: {
         entityType,
@@ -34,22 +33,20 @@ export class AuditLogsService {
         timestamp: new Date(),
       },
       include: {
-        user: true, 
+        user: true,
       },
     });
 
-    
     return plainToInstance(AuditLogEntity, createdAuditLog);
   }
 
   async getAuditLogs(): Promise<AuditLogEntity[]> {
     const auditLogs = await this.prisma.auditLog.findMany({
       include: {
-        user: true, 
+        user: true,
       },
     });
 
-   
     return plainToInstance(AuditLogEntity, auditLogs);
   }
 }

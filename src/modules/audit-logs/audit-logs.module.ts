@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { AuditLogsService } from './audit-logs.service';

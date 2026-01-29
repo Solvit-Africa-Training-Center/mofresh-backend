@@ -32,7 +32,7 @@ describe('AuditLogsController', () => {
           provide: AuditLogsService,
           useValue: {
             createAuditLog: jest.fn(), // Mock the createAuditLog method
-            getAuditLogs: jest.fn(),    // Mock the getAuditLogs method
+            getAuditLogs: jest.fn(), // Mock the getAuditLogs method
           },
         },
       ],
@@ -56,14 +56,13 @@ describe('AuditLogsController', () => {
         details: { name: 'Product1' },
       };
 
-      
       (auditLogsService.createAuditLog as jest.Mock).mockRejectedValue(
-        new BadRequestException('User not found')
+        new BadRequestException('User not found'),
       );
 
-      await expect(
-        auditLogsController.createAuditLog(createAuditLogDto)
-      ).rejects.toThrowError(BadRequestException);
+      await expect(auditLogsController.createAuditLog(createAuditLogDto)).rejects.toThrowError(
+        BadRequestException,
+      );
     });
 
     it('should create an audit log if user exists', async () => {
@@ -89,29 +88,24 @@ describe('AuditLogsController', () => {
         updatedAt: new Date(),
       };
 
-      
       const createdAuditLog = {
-        id: 'auditLogId', 
+        id: 'auditLogId',
         ...createAuditLogDto,
         timestamp: new Date(),
         user,
       };
 
-    
-      (auditLogsService.createAuditLog as jest.Mock).mockResolvedValue(
-        createdAuditLog
-      );
+      (auditLogsService.createAuditLog as jest.Mock).mockResolvedValue(createdAuditLog);
 
       const result = await auditLogsController.createAuditLog(createAuditLogDto);
 
-      
       expect(result).toEqual(createdAuditLog);
       expect(auditLogsService.createAuditLog).toHaveBeenCalledWith(
         'Product',
         '123',
         AuditAction.CREATE,
         'userId',
-        { name: 'Product1' }
+        { name: 'Product1' },
       );
     });
   });
@@ -142,12 +136,10 @@ describe('AuditLogsController', () => {
         },
       ];
 
-      
       (auditLogsService.getAuditLogs as jest.Mock).mockResolvedValue(auditLogs);
 
       const result = await auditLogsController.getAuditLogs();
 
-      
       expect(result).toEqual(auditLogs);
       expect(auditLogsService.getAuditLogs).toHaveBeenCalled();
     });

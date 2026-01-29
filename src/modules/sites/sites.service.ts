@@ -8,25 +8,21 @@ import { SiteEntity } from './dto/entities/site.entity';
 export class SitesService {
   constructor(private readonly prisma: PrismaService) {}
 
-
   async create(createSiteDto: CreateSiteDto): Promise<SiteEntity> {
     return this.prisma.site.create({
       data: createSiteDto,
     });
   }
 
- 
   async findAll(): Promise<SiteEntity[]> {
     return this.prisma.site.findMany();
   }
-
 
   async findOne(id: string): Promise<SiteEntity | null> {
     return this.prisma.site.findUnique({
       where: { id },
     });
   }
-
 
   async update(id: string, updateSiteDto: UpdateSiteDto): Promise<SiteEntity> {
     return this.prisma.site.update({

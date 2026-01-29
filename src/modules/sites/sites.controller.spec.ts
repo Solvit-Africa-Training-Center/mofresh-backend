@@ -18,7 +18,6 @@ describe('SitesController', () => {
     deletedAt: null,
   };
 
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SitesController],
@@ -70,7 +69,7 @@ describe('SitesController', () => {
   });
 
   it('should throw NotFoundException if site is not found by ID', async () => {
-    jest.spyOn(service, 'findOne').mockResolvedValue(null);  
+    jest.spyOn(service, 'findOne').mockResolvedValue(null);
     try {
       await controller.findOne('non-existing-id');
     } catch (e) {
@@ -88,7 +87,7 @@ describe('SitesController', () => {
   });
 
   it('should throw NotFoundException if site not found during update', async () => {
-    jest.spyOn(service, 'update').mockResolvedValue(null);  // Mocking site not found during update
+    jest.spyOn(service, 'update').mockResolvedValue(null); // Mocking site not found during update
     try {
       await controller.update('non-existing-id', { name: 'Updated Site' });
     } catch (e) {
@@ -104,7 +103,7 @@ describe('SitesController', () => {
   });
 
   it('should throw NotFoundException if site not found during deletion', async () => {
-    jest.spyOn(service, 'remove').mockResolvedValue(null); 
+    jest.spyOn(service, 'remove').mockResolvedValue(null);
     try {
       await controller.remove('non-existing-id');
     } catch (e) {

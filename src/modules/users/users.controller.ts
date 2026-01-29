@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Delete,
-  Body,
-  Post,
-} from '@nestjs/common';
+import { Controller, Get, Param, Patch, Delete, Body, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiTags, ApiCreatedResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -38,10 +30,7 @@ export class UsersController {
 
   @Patch(':id')
   @ApiOkResponse({ type: UserEntity })
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateUserDto,
-  ) {
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 

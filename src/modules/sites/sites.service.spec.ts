@@ -64,7 +64,7 @@ describe('SitesService', () => {
   });
 
   it('should throw NotFoundException if site not found by id', async () => {
-    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null); 
+    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null);
     try {
       await service.findOne('non-existing-id');
     } catch (error) {
@@ -81,7 +81,7 @@ describe('SitesService', () => {
   });
 
   it('should throw NotFoundException if site not found during update', async () => {
-    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null);  // Simulate no site found
+    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null); // Simulate no site found
     try {
       await service.update('non-existing-id', { name: 'Updated Site' });
     } catch (error) {
@@ -97,7 +97,7 @@ describe('SitesService', () => {
   });
 
   it('should throw NotFoundException if site not found during deletion', async () => {
-    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null);  
+    jest.spyOn(prisma.site, 'findUnique').mockResolvedValueOnce(null);
     try {
       await service.remove('non-existing-id');
     } catch (error) {

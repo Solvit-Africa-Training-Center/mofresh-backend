@@ -1,5 +1,5 @@
 import { Controller, Post, Body } from '@nestjs/common';
-import {  ApiOkResponse,ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiOkResponse, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from '../users/dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -22,10 +22,10 @@ export class AuthController {
     return this.authService.verifyOtp(dto.email, dto.code);
   }
 
-@Post('resend-otp')
-@ApiOperation({ summary: 'Resend OTP if expired or not received' })
-@ApiOkResponse({ description: 'New OTP sent successfully' })
-async resendOtp(@Body() dto: ResendOtpDto) { 
-  return this.authService.resendOtp(dto.email);
-}
+  @Post('resend-otp')
+  @ApiOperation({ summary: 'Resend OTP if expired or not received' })
+  @ApiOkResponse({ description: 'New OTP sent successfully' })
+  async resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto.email);
+  }
 }

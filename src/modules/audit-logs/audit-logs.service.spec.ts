@@ -22,7 +22,7 @@ describe('AuditLogsService', () => {
             },
             auditLog: {
               create: jest.fn(),
-              findMany: jest.fn(), 
+              findMany: jest.fn(),
             },
           },
         },
@@ -34,27 +34,21 @@ describe('AuditLogsService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks(); 
+    jest.clearAllMocks();
   });
 
   describe('createAuditLog', () => {
     it('should throw BadRequestException if user is not found', async () => {
- 
       (prismaService.user.findUnique as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        auditLogsService.createAuditLog(
-          'Product', 
-          '123', 
-          AuditAction.CREATE, 
-          'userId',
-        ),
+        auditLogsService.createAuditLog('Product', '123', AuditAction.CREATE, 'userId'),
       ).rejects.toThrowError(BadRequestException);
     });
 
     it('should create an audit log if user exists', async () => {
       const user = { id: 'userId', email: 'test@example.com' };
-      (prismaService.user.findUnique as jest.Mock).mockResolvedValue(user); 
+      (prismaService.user.findUnique as jest.Mock).mockResolvedValue(user);
 
       const auditLogData = {
         entityType: 'Product',
@@ -70,18 +64,16 @@ describe('AuditLogsService', () => {
         user,
       };
 
-      
       (prismaService.auditLog.create as jest.Mock).mockResolvedValue(createdAuditLog);
 
       const result = await auditLogsService.createAuditLog(
-        'Product', 
-        '123', 
-        AuditAction.CREATE, 
-        'userId', 
-        { name: 'Product1' }
+        'Product',
+        '123',
+        AuditAction.CREATE,
+        'userId',
+        { name: 'Product1' },
       );
 
-     
       expect(result).toEqual(plainToInstance(AuditLogEntity, createdAuditLog));
       expect(prismaService.user.findUnique).toHaveBeenCalledWith({ where: { id: 'userId' } });
       expect(prismaService.auditLog.create).toHaveBeenCalledWith({
@@ -112,12 +104,10 @@ describe('AuditLogsService', () => {
         },
       ];
 
-      
       (prismaService.auditLog.findMany as jest.Mock).mockResolvedValue(auditLogs);
 
       const result = await auditLogsService.getAuditLogs();
 
-      
       expect(result).toEqual(plainToInstance(AuditLogEntity, auditLogs));
       expect(prismaService.auditLog.findMany).toHaveBeenCalledWith({
         include: { user: true },

@@ -11,15 +11,13 @@ export class AuditLogsController {
 
   @Post()
   @ApiResponse({ status: 201, description: 'Audit log created', type: AuditLogEntity })
-  async createAuditLog(
-    @Body() createAuditLogDto: CreateAuditLogDto
-  ): Promise<AuditLogEntity> {
+  async createAuditLog(@Body() createAuditLogDto: CreateAuditLogDto): Promise<AuditLogEntity> {
     return this.auditLogsService.createAuditLog(
       createAuditLogDto.entityType,
       createAuditLogDto.entityId,
       createAuditLogDto.action,
       createAuditLogDto.userId,
-      createAuditLogDto.details
+      createAuditLogDto.details,
     );
   }
 

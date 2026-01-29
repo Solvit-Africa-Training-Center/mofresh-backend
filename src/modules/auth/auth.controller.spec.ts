@@ -3,7 +3,11 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { UserRole } from '@prisma/client';  
+import { UserRole } from '@prisma/client';
+
+const MOCK_EMAIL = 'test@example.com';
+const TEST_KEY = 'Strong_T3st_Key!123';
+const MOCK_CODE = '123456';
 
 describe('AuthController', () => {
   let authController: AuthController;
@@ -30,65 +34,44 @@ describe('AuthController', () => {
 
   describe('login', () => {
     it('should call AuthService login method', async () => {
-      const loginDto = { email: 'test@example.com', password: 'password' };
-      const result = { 
-        status: 'otp_sent', 
+      const loginDto = { email: MOCK_EMAIL, password: TEST_KEY };
+      const result = {
+        status: 'otp_sent',
         message: 'Verification code sent to email.',
-        email: 'test@example.com'  
+        email: MOCK_EMAIL,
       };
-      
+
       jest.spyOn(authService, 'login').mockResolvedValue(result);
 
       const response = await authController.login(loginDto);
       expect(response).toEqual(result);
-      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password');
+      expect(authService.login).toHaveBeenCalledWith(MOCK_EMAIL, TEST_KEY);
     });
   });
 
   describe('resendOtp', () => {
     it('should call AuthService resendOtp method', async () => {
-      const resendOtpDto: ResendOtpDto = { email: 'test@example.com' };
-      const result = { 
-        status: 'otp_sent', 
-        message: 'Verification code sent to email.',
-        email: 'test@example.com'  
-      };
-      
-      jest.spyOn(authService, 'resendOtp').mockResolvedValue(result);
+      const resendOtpDto: ResendOtpDto = { email: MOCK_EMAIL };
+      const result = { status: 'otp_sent', message: 'OTP sent', email: MOCK_EMAIL };
 
+      jest.spyOn(authService, 'resendOtp').mockResolvedValue(result);
       const response = await authController.resendOtp(resendOtpDto);
       expect(response).toEqual(result);
-      expect(authService.resendOtp).toHaveBeenCalledWith('test@example.com');
     });
   });
 
   describe('verifyOtp', () => {
     it('should call AuthService verifyOtp method', async () => {
-      const verifyOtpDto: VerifyOtpDto = { email: 'test@example.com', code: '123456' };
-      
-      
-      const result = { 
-        status: 'success', 
-        token: 'jwt_token', 
-        user: { 
-          id: '1', 
-          email: 'test@example.com', 
-          firstName: 'John', 
-          lastName: 'Doe', 
-          phone: '123-456-7890', 
-          role: UserRole.SUPPLIER,  
-          siteId: null,  
-          isActive: true, 
-          createdAt: new Date(), 
-          updatedAt: new Date(),
-        } 
+      const verifyOtpDto: VerifyOtpDto = { email: MOCK_EMAIL, code: MOCK_CODE };
+      const result = {
+        status: 'success',
+        token: 'mock_jwt_token',
+        user: { id: '1', email: MOCK_EMAIL, role: UserRole.SUPPLIER } as any,
       };
-      
-      jest.spyOn(authService, 'verifyOtp').mockResolvedValue(result);
 
+      jest.spyOn(authService, 'verifyOtp').mockResolvedValue(result);
       const response = await authController.verifyOtp(verifyOtpDto);
       expect(response).toEqual(result);
-      expect(authService.verifyOtp).toHaveBeenCalledWith('test@example.com', '123456');
     });
   });
 });

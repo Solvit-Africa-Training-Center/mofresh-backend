@@ -19,9 +19,8 @@ export class MailService {
   }
 
   async sendOtpEmail(email: string, otp: string) {
-   
     const logoPath = join(process.cwd(), 'src/assets/images/MoFreshLogo.png');
-    
+
     const mailOptions = {
       from: `"MoFresh Support" <${process.env.ADMIN_EMAIL}>`,
       to: email,
@@ -123,11 +122,11 @@ export class MailService {
         {
           filename: 'MoFreshLogo.png',
           path: logoPath,
-          cid: 'unique_logo_id'
-        }
-      ]
+          cid: 'unique_logo_id',
+        },
+      ],
     };
-    
+
     await this.transporter.sendMail(mailOptions);
   }
 }

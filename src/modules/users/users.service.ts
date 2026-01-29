@@ -4,13 +4,11 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { HashingUtil } from '../../common/utils/hashing.util';
 
-
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async register(dto: CreateUserDto) {
-    
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [{ email: dto.email }, { phone: dto.phone }],
@@ -21,10 +19,8 @@ export class UsersService {
       throw new ConflictException('Email or phone number already in use');
     }
 
-    
     const hashedPassword = await HashingUtil.hash(dto.password);
 
-    
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -38,7 +34,6 @@ export class UsersService {
       },
     });
 
-    
     const { password, ...userWithoutPassword } = user;
 
     return {
@@ -77,7 +72,7 @@ export class UsersService {
     });
 
     if (!user) throw new NotFoundException('User not found');
-    
+
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }
