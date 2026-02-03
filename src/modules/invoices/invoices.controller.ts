@@ -218,7 +218,6 @@ export class InvoicesController {
     @Body() dto: MarkPaidDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<InvoiceResponseDto> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.invoicesService.markPaid(id, dto.paymentAmount, user.id);
   }
 
@@ -256,7 +255,6 @@ export class InvoicesController {
     @Body() dto: VoidInvoiceDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
     return this.invoicesService.voidInvoice(id, dto.reason, user.id);
   }
 }
