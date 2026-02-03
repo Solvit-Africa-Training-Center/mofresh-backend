@@ -1,0 +1,262 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
+import { InvoicesService } from './invoices.service';
+import {
+  GenerateOrderInvoiceDto,
+  GenerateRentalInvoiceDto,
+  InvoiceResponseDto,
+  QueryInvoicesDto,
+  MarkPaidDto,
+  VoidInvoiceDto,
+} from './dto';
+import { RolesGuard } from '../../common/guards';
+import { Roles } from '../../common/decorators';
+import { CurrentUser } from '../../common/decorators';
+import { AuthenticatedUser } from '../../common/interfaces';
+import { UserRole } from '@prisma/client';
+
+@ApiTags('Invoices')
+@Controller('invoices')
+@UseGuards(RolesGuard)
+@ApiBearerAuth()
+export class InvoicesController {
+  constructor(private readonly invoicesService: InvoicesService) {}
+
+  @Post('generate/order')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Generate invoice for an approved order' })
+  @ApiResponse({
+    status: 201,
+    description: 'Invoice successfully generated',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Order not approved or insufficient data',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Order not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Invoice already exists for this order',
+  })
+  async generateOrderInvoice(
+    @Body() dto: GenerateOrderInvoiceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceResponseDto> {
+    const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
+    return this.invoicesService.generateOrderInvoice(dto.orderId, dueDate, user.id);
+  }
+
+  @Post('generate/rental')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Generate invoice for an approved rental' })
+  @ApiResponse({
+    status: 201,
+    description: 'Invoice successfully generated',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Rental not approved or insufficient data',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Rental not found',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Invoice already exists for this rental',
+  })
+  async generateRentalInvoice(
+    @Body() dto: GenerateRentalInvoiceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceResponseDto> {
+    const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
+    return this.invoicesService.generateRentalInvoice(dto.rentalId, dueDate, user.id);
+  }
+
+  @Get()
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN, UserRole.CLIENT, UserRole.SUPPLIER)
+  @ApiOperation({ summary: 'Get all invoices with optional filters' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of invoices',
+    type: [InvoiceResponseDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  async findAll(@Query() query: QueryInvoicesDto, @CurrentUser() user: AuthenticatedUser) {
+    const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
+
+    return this.invoicesService.findAll(query, siteId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN, UserRole.CLIENT, UserRole.SUPPLIER)
+  @ApiOperation({ summary: 'Get invoice by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'Invoice ID',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice found',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invoice not found',
+  })
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceResponseDto> {
+    const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
+    return this.invoicesService.findOne(id, siteId);
+  }
+
+  @Get('number/:invoiceNumber')
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN, UserRole.CLIENT, UserRole.SUPPLIER)
+  @ApiOperation({ summary: 'Get invoice by invoice number' })
+  @ApiParam({
+    name: 'invoiceNumber',
+    description: 'Invoice number',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice found',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invoice not found',
+  })
+  async findByInvoiceNumber(
+    @Param('invoiceNumber') invoiceNumber: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceResponseDto> {
+    const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
+    return this.invoicesService.findByInvoiceNumber(invoiceNumber, siteId);
+  }
+
+  @Patch(':id/mark-paid')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Mark invoice as paid (manual payment)' })
+  @ApiParam({
+    name: 'id',
+    description: 'Invoice ID',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice payment recorded successfully',
+    type: InvoiceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Cannot mark voided invoice as paid',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invoice not found',
+  })
+  async markPaid(
+    @Param('id') id: string,
+    @Body() dto: MarkPaidDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<InvoiceResponseDto> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+    return this.invoicesService.markPaid(id, dto.paymentAmount, user.id);
+  }
+
+  @Patch(':id/void')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Void an invoice' })
+  @ApiParam({
+    name: 'id',
+    description: 'Invoice ID',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Invoice voided successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Cannot void paid invoice or already voided',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Authentication required',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Invoice not found',
+  })
+  async voidInvoice(
+    @Param('id') id: string,
+    @Body() dto: VoidInvoiceDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+    return this.invoicesService.voidInvoice(id, dto.reason, user.id);
+  }
+}
