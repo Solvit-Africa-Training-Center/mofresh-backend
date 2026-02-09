@@ -270,17 +270,26 @@ export class InvoicesService {
   /**
    * get invoice by ID with site scoping
    */
-  async findOne(id: string, userSiteId?: string): Promise<InvoiceResponseDto> {
+  async findOne(
+    id: string,
+    userSiteId?: string,
+    userClientId?: string,
+  ): Promise<InvoiceResponseDto> {
     interface WhereClause {
       id: string;
       deletedAt: null;
       siteId?: string;
+      clientId?: string;
     }
 
     const where: WhereClause = { id, deletedAt: null };
 
     if (userSiteId) {
       where.siteId = userSiteId;
+    }
+
+    if (userClientId) {
+      where.clientId = userClientId;
     }
 
     const invoice = await this.prisma.invoice.findFirst({
@@ -326,10 +335,10 @@ export class InvoicesService {
   /**
    * query invoices with filters and pagination
    */
-  async findAll(query: QueryInvoicesDto, siteId?: string) {
+  async findAll(query: QueryInvoicesDto, siteId?: string, clientId?: string) {
     const {
       status,
-      clientId,
+      clientId: queryClientId,
       siteId: querySiteId,
       startDate,
       endDate,
@@ -356,8 +365,11 @@ export class InvoicesService {
       where.status = status;
     }
 
+    // Role-based client scoping - override query params if user is a CLIENT
     if (clientId) {
       where.clientId = clientId;
+    } else if (queryClientId) {
+      where.clientId = queryClientId;
     }
 
     if (siteId) {

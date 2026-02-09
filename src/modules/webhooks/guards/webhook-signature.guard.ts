@@ -43,21 +43,19 @@ export class WebhookSignatureGuard implements CanActivate {
     >();
     const signature = request.headers['x-signature'] || request.headers['x-momo-signature'];
 
-    /**
-     * NOTE: In production, MTN MoMo signs the raw body bytes.
-     * Currently using JSON.stringify which may work for testing but should be replaced
-     * with actual raw body captured via body-parser's verify callback in main.ts
-     * For now, this maintains backward compatibility with existing tests
-     */
-
-    const rawBody = request.rawBody || JSON.stringify(request.body);
-
     if (!signature) {
       this.logger.warn('Webhook signature missing in request headers');
       throw new UnauthorizedException('Webhook signature missing');
     }
 
-    const isValid = this.verifySignature(rawBody, signature);
+    if (!request.rawBody) {
+      this.logger.error(
+        'Raw body not captured. Ensure body-parser verify callback is configured in main.ts',
+      );
+      throw new UnauthorizedException('Webhook verification failed: raw body missing');
+    }
+
+    const isValid = this.verifySignature(request.rawBody, signature);
 
     if (!isValid) {
       this.logger.error('Invalid webhook signature');
@@ -75,7 +73,16 @@ export class WebhookSignatureGuard implements CanActivate {
         .update(payload)
         .digest('hex');
 
-      return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+      // Checking length first to avoid timingSafeEqual throwing on mismatch
+      if (signature.length !== expectedSignature.length) {
+        return false;
+      }
+
+      // timing-safe comparison to prevent timing attacks
+      return crypto.timingSafeEqual(
+        Buffer.from(signature, 'hex'),
+        Buffer.from(expectedSignature, 'hex'),
+      );
     } catch (error) {
       this.logger.error('Error verifying webhook signature', error);
       return false;

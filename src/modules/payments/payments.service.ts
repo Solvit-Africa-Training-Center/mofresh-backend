@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
-import { PaymentStatus, PaymentMethod, AuditAction } from '@prisma/client';
+import { PaymentStatus, PaymentMethod, AuditAction, InvoiceStatus } from '@prisma/client';
 import { MtnMomoService } from './services/mtn-momo.service';
 
 @Injectable()
@@ -26,11 +26,11 @@ export class PaymentsService {
       throw new NotFoundException(`Invoice ${invoiceId} not found`);
     }
 
-    if (invoice.status === 'PAID') {
+    if (invoice.status === InvoiceStatus.PAID) {
       throw new BadRequestException('Invoice is already paid');
     }
 
-    if (invoice.status === 'VOID') {
+    if (invoice.status === InvoiceStatus.VOID) {
       throw new BadRequestException('Cannot pay voided invoice');
     }
 
@@ -219,7 +219,8 @@ export class PaymentsService {
       }
 
       const newPaidAmount = updatedInvoice.paidAmount + amount;
-      const newStatus = newPaidAmount >= updatedInvoice.totalAmount ? 'PAID' : 'UNPAID';
+      const newStatus =
+        newPaidAmount >= updatedInvoice.totalAmount ? InvoiceStatus.PAID : InvoiceStatus.UNPAID;
 
       await tx.invoice.update({
         where: { id: payment.invoiceId },
@@ -295,9 +296,9 @@ export class PaymentsService {
   }
 
   /**
-   * get payment by ID
+   * get payment by ID with user scoping
    */
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string, userRole?: string, userSiteId?: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
       include: {
@@ -307,6 +308,21 @@ export class PaymentsService {
 
     if (!payment) {
       throw new NotFoundException(`Payment ${id} not found`);
+    }
+
+    // role-based access control
+    if (userId && userRole) {
+      const invoice = payment.invoice;
+
+      // CLIENT can only view their own payments
+      if (userRole === 'CLIENT' && invoice.clientId !== userId) {
+        throw new NotFoundException(`Payment ${id} not found`);
+      }
+
+      // SITE_MANAGER can only view payments from their site
+      if (userRole === 'SITE_MANAGER' && userSiteId && invoice.siteId !== userSiteId) {
+        throw new NotFoundException(`Payment ${id} not found`);
+      }
     }
 
     return payment;

@@ -48,8 +48,8 @@ export class PaymentsController {
   @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN, UserRole.CLIENT)
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiResponse({ status: 200, description: 'Payment found' })
-  async findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.paymentsService.findOne(id, user.id, user.role, user.siteId);
   }
 
   @Get()

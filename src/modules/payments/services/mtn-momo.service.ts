@@ -201,8 +201,10 @@ export class MtnMomoService {
     const webhookSecret = this.configService.get<string>('MOMO_WEBHOOK_SECRET') || '';
 
     if (!webhookSecret) {
-      this.logger.warn('MOMO_WEBHOOK_SECRET not configured. Skipping signature verification.');
-      return true;
+      this.logger.error(
+        'MOMO_WEBHOOK_SECRET not configured in production. Webhook rejected for security.',
+      );
+      return false;
     }
 
     const expectedSignature = crypto

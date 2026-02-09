@@ -120,9 +120,21 @@ export class InvoicesController {
     description: 'Unauthorized - Authentication required',
   })
   async findAll(@Query() query: QueryInvoicesDto, @CurrentUser() user: AuthenticatedUser) {
-    const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
+    // Apply role-based scoping
+    let siteId: string | undefined;
+    let clientId: string | undefined;
 
-    return this.invoicesService.findAll(query, siteId);
+    if (user.role === UserRole.SITE_MANAGER) {
+      siteId = user.siteId || undefined;
+    } else if (user.role === UserRole.CLIENT) {
+      // Clients can only see their own invoices
+      clientId = user.id;
+    } else if (user.role === UserRole.SUPPLIER) {
+      // Suppliers can only see invoices from their site
+      siteId = user.siteId || undefined;
+    }
+
+    return this.invoicesService.findAll(query, siteId, clientId);
   }
 
   @Get(':id')
@@ -150,8 +162,18 @@ export class InvoicesController {
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<InvoiceResponseDto> {
-    const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
-    return this.invoicesService.findOne(id, siteId);
+    let siteId: string | undefined;
+    let clientId: string | undefined;
+
+    if (user.role === UserRole.SITE_MANAGER) {
+      siteId = user.siteId || undefined;
+    } else if (user.role === UserRole.CLIENT) {
+      clientId = user.id;
+    } else if (user.role === UserRole.SUPPLIER) {
+      siteId = user.siteId || undefined;
+    }
+
+    return this.invoicesService.findOne(id, siteId, clientId);
   }
 
   @Get('number/:invoiceNumber')

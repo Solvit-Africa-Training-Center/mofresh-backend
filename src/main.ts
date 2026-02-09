@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as compression from 'compression';
+import { json } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -12,6 +13,17 @@ async function bootstrap() {
 
   app.use(helmet());
   app.use(compression());
+
+  // raw body for webhook signature verification
+  app.use(
+    json({
+      verify: (req: { url?: string; rawBody?: string }, res, buf) => {
+        if (req.url?.includes('/webhooks/')) {
+          req.rawBody = buf.toString('utf8');
+        }
+      },
+    }),
+  );
 
   app.enableCors({
     origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
