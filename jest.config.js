@@ -12,8 +12,23 @@ module.exports = {
     '!**/*.interface.ts',
   ],
   coverageDirectory: '../coverage',
+  coverageReporters: ['json', 'lcov', 'text', 'html', 'json-summary'],
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  reporters: [
+    'default',
+    [
+      'jest-junit',
+      {
+        outputDirectory: './coverage',
+        outputName: 'junit.xml',
+        classNameTemplate: '{classname}',
+        titleTemplate: '{title}',
+        ancestorSeparator: ' › ',
+        usePathForSuiteName: true,
+      },
+    ],
+  ],
 };
