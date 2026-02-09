@@ -16,7 +16,11 @@ module.exports = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^uuid$': '<rootDir>/../node_modules/uuid/dist/index.js',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)',
+  ],
   reporters: [
     'default',
     [
