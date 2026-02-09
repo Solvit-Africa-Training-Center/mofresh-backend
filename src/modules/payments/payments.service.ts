@@ -266,34 +266,32 @@ export class PaymentsService {
   async markPaidManually(paymentId: string, userId: string) {
     this.logger.log(`Manually marking payment ${paymentId} as paid`);
 
-    return await this.prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.findUnique({
-        where: { id: paymentId },
-      });
-
-      if (!payment) {
-        throw new NotFoundException(`Payment ${paymentId} not found`);
-      }
-
-      if (payment.status === PaymentStatus.PAID) {
-        throw new BadRequestException('Payment is already marked as paid');
-      }
-
-      // update payment status
-      const updatedPayment = await tx.payment.update({
-        where: { id: paymentId },
-        data: {
-          status: PaymentStatus.PAID,
-          paidAt: new Date(),
-          markedPaidBy: userId,
-        },
-      });
-
-      // mark invoice as paid
-      await this.invoicesService.markPaid(payment.invoiceId, payment.amount, userId);
-
-      return updatedPayment;
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
     });
+
+    if (!payment) {
+      throw new NotFoundException(`Payment ${paymentId} not found`);
+    }
+
+    if (payment.status === PaymentStatus.PAID) {
+      throw new BadRequestException('Payment is already marked as paid');
+    }
+
+    // update payment status
+    const updatedPayment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.PAID,
+        paidAt: new Date(),
+        markedPaidBy: userId,
+      },
+    });
+
+    // mark invoice as paid
+    await this.invoicesService.markPaid(payment.invoiceId, payment.amount, userId);
+
+    return updatedPayment;
   }
 
   /**

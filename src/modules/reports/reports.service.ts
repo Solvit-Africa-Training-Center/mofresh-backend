@@ -108,11 +108,8 @@ export class ReportsService {
     const totalInvoices = paidInvoices + unpaidInvoices;
 
     const totalPaidAmount = paidData._sum.paidAmount || 0;
-    const totalUnpaidAmount =
-      (invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._sum.totalAmount || 0) -
-      (invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._sum.totalAmount
-        ? await this.getUnpaidBalances(siteId, startDate, endDate)
-        : 0);
+    // total unpaid amount is the outstanding balance (totalAmount - paidAmount for unpaid invoices)
+    const totalUnpaidAmount = await this.getUnpaidBalances(siteId, startDate, endDate);
 
     return {
       productSales,

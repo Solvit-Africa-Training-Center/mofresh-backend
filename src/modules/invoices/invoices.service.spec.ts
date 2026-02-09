@@ -260,7 +260,7 @@ describe('InvoicesService', () => {
         deletedAt: null,
       };
 
-      mockPrismaService.invoice.findUnique.mockResolvedValue(mockInvoice);
+      mockPrismaService.invoice.findFirst.mockResolvedValue(mockInvoice);
 
       const result = await service.findOne('invoice-1');
 
@@ -269,7 +269,7 @@ describe('InvoicesService', () => {
     });
 
     it('should throw NotFoundException if invoice not found', async () => {
-      mockPrismaService.invoice.findUnique.mockResolvedValue(null);
+      mockPrismaService.invoice.findFirst.mockResolvedValue(null);
 
       await expect(service.findOne('invalid-id')).rejects.toThrow(NotFoundException);
     });

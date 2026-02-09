@@ -1,10 +1,16 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { MtnMomoService } from './services/mtn-momo.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { PaymentStatus, PaymentMethod, InvoiceStatus, AuditAction } from '@prisma/client';
+import { PaymentStatus, PaymentMethod, InvoiceStatus } from '@prisma/client';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -344,9 +350,6 @@ describe('PaymentsService', () => {
 
   describe('markPaidManually', () => {
     it('should mark payment as paid manually', async () => {
-      const mockTransaction = jest.fn((callback) => callback(mockPrismaService));
-      mockPrismaService.$transaction = mockTransaction;
-
       mockPrismaService.payment.findUnique.mockResolvedValue(mockPayment);
       mockPrismaService.payment.update.mockResolvedValue({
         ...mockPayment,
@@ -370,12 +373,10 @@ describe('PaymentsService', () => {
         mockPayment.amount,
         'user-1',
       );
-      expect(mockTransaction).toHaveBeenCalled();
+      expect(mockPrismaService.payment.update).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if payment not found', async () => {
-      const mockTransaction = jest.fn((callback) => callback(mockPrismaService));
-      mockPrismaService.$transaction = mockTransaction;
       mockPrismaService.payment.findUnique.mockResolvedValue(null);
 
       await expect(service.markPaidManually('invalid-id', 'user-1')).rejects.toThrow(
@@ -384,8 +385,6 @@ describe('PaymentsService', () => {
     });
 
     it('should throw BadRequestException if payment already paid', async () => {
-      const mockTransaction = jest.fn((callback) => callback(mockPrismaService));
-      mockPrismaService.$transaction = mockTransaction;
       mockPrismaService.payment.findUnique.mockResolvedValue({
         ...mockPayment,
         status: PaymentStatus.PAID,

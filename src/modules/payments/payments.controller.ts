@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
+import { InitiatePaymentDto } from './dto';
 import { RolesGuard } from '../../common/guards';
 import { Roles } from '../../common/decorators';
 import { CurrentUser } from '../../common/decorators';
@@ -30,27 +31,8 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Initiate MTN MoMo payment' })
   @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
-  async initiatePayment(
-    @Body() body: { invoiceId: string; phoneNumber: string },
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
+  async initiatePayment(@Body() body: InitiatePaymentDto, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.initiatePayment(body.invoiceId, body.phoneNumber, user.id);
-  }
-
-  @Post('momo/webhook')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'MTN MoMo webhook endpoint (public)' })
-  @ApiResponse({ status: 200, description: 'Webhook processed' })
-  processWebhook(
-    @Body()
-    webhookData: {
-      transactionRef: string;
-      status: string;
-      amount?: number;
-      reason?: string;
-    },
-  ) {
-    return this.paymentsService.processWebhook(webhookData);
   }
 
   @Post(':id/mark-paid')

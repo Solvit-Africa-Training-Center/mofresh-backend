@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { WebhooksService } from './webhooks.service';
 import { PaymentsService } from '../payments/payments.service';

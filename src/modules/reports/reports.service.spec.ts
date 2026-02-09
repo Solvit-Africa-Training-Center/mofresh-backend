@@ -108,6 +108,7 @@ describe('ReportsService', () => {
         .mockResolvedValueOnce({ _sum: { paidAmount: null } });
 
       mockPrismaService.invoice.groupBy.mockResolvedValue([]);
+      mockPrismaService.invoice.findMany.mockResolvedValue([]);
 
       const result = await service.getRevenueReport(
         { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
@@ -186,6 +187,7 @@ describe('ReportsService', () => {
         _count: 0,
       });
       mockPrismaService.invoice.groupBy.mockResolvedValue([]);
+      mockPrismaService.invoice.findMany.mockResolvedValue([]);
 
       const result = await service.getRevenueReport({}, 'site-1');
 

@@ -283,7 +283,7 @@ export class InvoicesService {
       where.siteId = userSiteId;
     }
 
-    const invoice = await this.prisma.invoice.findUnique({
+    const invoice = await this.prisma.invoice.findFirst({
       where,
       include: {
         items: true,

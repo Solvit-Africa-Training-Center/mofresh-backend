@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -59,10 +62,7 @@ describe('WebhookSignatureGuard', () => {
         .update(JSON.stringify(body))
         .digest('hex');
 
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': signature },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': signature }, body);
 
       expect(guard.canActivate(context)).toBe(true);
     });
@@ -86,7 +86,7 @@ describe('WebhookSignatureGuard', () => {
       expect(() => guard.canActivate(context)).toThrow('Webhook signature missing');
     });
 
-    it('should allow request when webhook secret not configured', () => {
+    it('should reject request when webhook secret not configured in production', () => {
       mockConfigService.get = jest.fn((key: string) => {
         if (key === 'MOMO_ENVIRONMENT') return 'production';
         return null; // No secret
@@ -94,12 +94,10 @@ describe('WebhookSignatureGuard', () => {
       const newGuard = new WebhookSignatureGuard(configService);
 
       const body = { transactionRef: 'test-123', status: 'SUCCESSFUL' };
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': 'any-signature' },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': 'any-signature' }, body);
 
-      expect(newGuard.canActivate(context)).toBe(true);
+      expect(() => newGuard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => newGuard.canActivate(context)).toThrow('Webhook authentication not configured');
     });
 
     it('should skip verification in sandbox mode', () => {
@@ -111,10 +109,7 @@ describe('WebhookSignatureGuard', () => {
       const newGuard = new WebhookSignatureGuard(configService);
 
       const body = { transactionRef: 'test-123', status: 'SUCCESSFUL' };
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': 'invalid-signature' },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': 'invalid-signature' }, body);
 
       // Should allow even with invalid signature because in sandbox mode
       expect(newGuard.canActivate(context)).toBe(true);
@@ -128,10 +123,7 @@ describe('WebhookSignatureGuard', () => {
         .update(JSON.stringify(body))
         .digest('hex');
 
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': signature },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': signature }, body);
 
       expect(guard.canActivate(context)).toBe(true);
     });
@@ -155,10 +147,7 @@ describe('WebhookSignatureGuard', () => {
         .digest('hex');
 
       // Try to use signature1 for body2 (should fail)
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': signature1 },
-        body2,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': signature1 }, body2);
 
       expect(() => testGuard.canActivate(context)).toThrow(UnauthorizedException);
     });
@@ -173,10 +162,7 @@ describe('WebhookSignatureGuard', () => {
         .update(JSON.stringify(body))
         .digest('hex');
 
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': expectedSignature },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': expectedSignature }, body);
 
       expect(guard.canActivate(context)).toBe(true);
     });
@@ -205,10 +191,7 @@ describe('WebhookSignatureGuard', () => {
         .update(JSON.stringify(body))
         .digest('hex');
 
-      const context = createMockExecutionContext(
-        { 'x-momo-signature': signature },
-        body,
-      );
+      const context = createMockExecutionContext({ 'x-momo-signature': signature }, body);
 
       // This test verifies that the guard uses timingSafeEqual
       // by successfully validating a correct signature

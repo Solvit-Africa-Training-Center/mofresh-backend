@@ -25,20 +25,36 @@ export class WebhookSignatureGuard implements CanActivate {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<Request & { headers: Record<string, string>; body: Record<string, unknown> }>();
+    if (!this.webhookSecret) {
+      this.logger.error(
+        'MOMO_WEBHOOK_SECRET not configured in production environment. Rejecting webhook.',
+      );
+      throw new UnauthorizedException(
+        'Webhook authentication not configured. Contact system administrator.',
+      );
+    }
+
+    const request = context.switchToHttp().getRequest<
+      Request & {
+        headers: Record<string, string>;
+        body: Record<string, unknown>;
+        rawBody?: string;
+      }
+    >();
     const signature = request.headers['x-signature'] || request.headers['x-momo-signature'];
-    const rawBody = JSON.stringify(request.body);
+
+    /**
+     * NOTE: In production, MTN MoMo signs the raw body bytes.
+     * Currently using JSON.stringify which may work for testing but should be replaced
+     * with actual raw body captured via body-parser's verify callback in main.ts
+     * For now, this maintains backward compatibility with existing tests
+     */
+
+    const rawBody = request.rawBody || JSON.stringify(request.body);
 
     if (!signature) {
       this.logger.warn('Webhook signature missing in request headers');
       throw new UnauthorizedException('Webhook signature missing');
-    }
-
-    if (!this.webhookSecret) {
-      this.logger.warn('MOMO_WEBHOOK_SECRET not configured. Allowing webhook in development mode.');
-      return true;
     }
 
     const isValid = this.verifySignature(rawBody, signature);

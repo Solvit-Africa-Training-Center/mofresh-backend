@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
-import { InvoiceStatus } from '@prisma/client';
+import { UserRole, InvoiceStatus } from '@prisma/client';
+import { AuthenticatedUser } from '../../common/interfaces';
 
 describe('ReportsController', () => {
   let controller: ReportsController;
@@ -9,6 +10,20 @@ describe('ReportsController', () => {
   const mockReportsService = {
     getRevenueReport: jest.fn(),
     getUnpaidInvoicesReport: jest.fn(),
+  };
+
+  const mockUser: AuthenticatedUser = {
+    id: 'user-1',
+    email: 'admin@mofresh.com',
+    role: UserRole.SUPER_ADMIN,
+    siteId: undefined,
+  };
+
+  const mockSiteManagerUser: AuthenticatedUser = {
+    id: 'user-2',
+    email: 'manager@mofresh.com',
+    role: UserRole.SITE_MANAGER,
+    siteId: 'site-1',
   };
 
   beforeEach(async () => {
@@ -23,7 +38,6 @@ describe('ReportsController', () => {
     }).compile();
 
     controller = module.get<ReportsController>(ReportsController);
-    // service = module.get<ReportsService>(ReportsService);
 
     jest.clearAllMocks();
   });
@@ -52,13 +66,13 @@ describe('ReportsController', () => {
         endDate: '2026-12-31T23:59:59.999Z',
       };
 
-      const result = await controller.getRevenueReport(query);
+      const result = await controller.getRevenueReport(query, mockUser);
 
       expect(result).toEqual(mockRevenueReport);
       expect(mockReportsService.getRevenueReport).toHaveBeenCalledWith(query, undefined);
     });
 
-    it('should handle query with siteId', async () => {
+    it('should handle query with siteId for super admin', async () => {
       mockReportsService.getRevenueReport.mockResolvedValue(mockRevenueReport);
 
       const query = {
@@ -67,15 +81,28 @@ describe('ReportsController', () => {
         siteId: 'site-1',
       };
 
-      await controller.getRevenueReport(query);
+      await controller.getRevenueReport(query, mockUser);
 
       expect(mockReportsService.getRevenueReport).toHaveBeenCalledWith(query, undefined);
+    });
+
+    it('should scope to site manager site', async () => {
+      mockReportsService.getRevenueReport.mockResolvedValue(mockRevenueReport);
+
+      const query = {
+        startDate: '2026-01-01T00:00:00.000Z',
+        endDate: '2026-12-31T23:59:59.999Z',
+      };
+
+      await controller.getRevenueReport(query, mockSiteManagerUser);
+
+      expect(mockReportsService.getRevenueReport).toHaveBeenCalledWith(query, 'site-1');
     });
 
     it('should handle empty query parameters', async () => {
       mockReportsService.getRevenueReport.mockResolvedValue(mockRevenueReport);
 
-      await controller.getRevenueReport({});
+      await controller.getRevenueReport({}, mockUser);
 
       expect(mockReportsService.getRevenueReport).toHaveBeenCalledWith({}, undefined);
     });
@@ -108,7 +135,7 @@ describe('ReportsController', () => {
 
       mockReportsService.getRevenueReport.mockResolvedValue(mockAggregatedReport);
 
-      const result = await controller.getRevenueReport({});
+      const result = await controller.getRevenueReport({}, mockUser);
 
       expect(result).toEqual(mockAggregatedReport);
       expect(result).toHaveProperty('siteBreakdown');
@@ -151,30 +178,30 @@ describe('ReportsController', () => {
     it('should return unpaid invoices report', async () => {
       mockReportsService.getUnpaidInvoicesReport.mockResolvedValue(mockUnpaidReport);
 
-      const result = await controller.getUnpaidInvoicesReport({});
+      const result = await controller.getUnpaidInvoicesReport({}, mockUser);
 
       expect(result).toEqual(mockUnpaidReport);
       expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith({}, undefined);
     });
 
-    it('should handle query with siteId filter', async () => {
+    it('should handle query with siteId filter for super admin', async () => {
       mockReportsService.getUnpaidInvoicesReport.mockResolvedValue(mockUnpaidReport);
 
       const query = { siteId: 'site-1' };
 
-      await controller.getUnpaidInvoicesReport(query);
+      await controller.getUnpaidInvoicesReport(query, mockUser);
 
       expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith(query, undefined);
     });
 
-    it('should handle overdue filter', async () => {
+    it('should scope to site manager site', async () => {
       mockReportsService.getUnpaidInvoicesReport.mockResolvedValue(mockUnpaidReport);
 
       const query = { overdue: true };
 
-      await controller.getUnpaidInvoicesReport(query);
+      await controller.getUnpaidInvoicesReport(query, mockSiteManagerUser);
 
-      expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith(query, undefined);
+      expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith(query, 'site-1');
     });
 
     it('should handle pagination parameters', async () => {
@@ -182,7 +209,7 @@ describe('ReportsController', () => {
 
       const query = { page: 2, limit: 20 };
 
-      await controller.getUnpaidInvoicesReport(query);
+      await controller.getUnpaidInvoicesReport(query, mockUser);
 
       expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith(query, undefined);
     });
@@ -197,7 +224,7 @@ describe('ReportsController', () => {
         limit: 10,
       };
 
-      await controller.getUnpaidInvoicesReport(query);
+      await controller.getUnpaidInvoicesReport(query, mockUser);
 
       expect(mockReportsService.getUnpaidInvoicesReport).toHaveBeenCalledWith(query, undefined);
     });
@@ -221,7 +248,7 @@ describe('ReportsController', () => {
 
       mockReportsService.getUnpaidInvoicesReport.mockResolvedValue(emptyReport);
 
-      const result = await controller.getUnpaidInvoicesReport({});
+      const result = await controller.getUnpaidInvoicesReport({}, mockUser);
 
       expect(result.data).toHaveLength(0);
       expect(result.summary.totalUnpaidInvoices).toBe(0);
