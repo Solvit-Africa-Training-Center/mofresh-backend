@@ -1,101 +1,64 @@
 services:
-  # MoFresh Backend - Integrated Cold Chain Management & Digital Agricultural Marketplace
   - type: web
     name: mofresh-backend
-    runtime: node
-    region: frankfurt
+    env: node
     plan: starter
+    branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start:prod
     healthCheckPath: /api/v1/health
-    
     envVars:
-      # APPLICATION CONFIGURATION
       - key: NODE_ENV
         value: production
-      
       - key: PORT
         value: 3000
-      
       - key: API_PREFIX
         value: api/v1
-      
-      # DATABASE CONFIGURATION
       - key: DATABASE_URL
         fromDatabase:
           name: mofresh-db
           property: connectionString
-      
-      # AUTHENTICATION & SECURITY
       - key: JWT_SECRET
         generateValue: true
-      
       - key: JWT_EXPIRES_IN
         value: 24h
-      
       - key: JWT_REFRESH_SECRET
         generateValue: true
-      
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
-      
       - key: BCRYPT_ROUNDS
         value: 12
-      
-      # CORS CONFIGURATION
       - key: CORS_ORIGIN
         value: https://mofreshapp.netlify.app
-      
-      # EMAIL CONFIGURATION
       - key: ADMIN_EMAIL
         sync: false
-      
       - key: EMAIL_PASSWORD
         sync: false
-      
       - key: EMAIL_USER
         sync: false
-      
-      # MTN MOBILE MONEY CONFIGURATION
       - key: MOMO_COLLECTION_USER_ID
         sync: false
-      
       - key: MOMO_COLLECTION_API_KEY
         sync: false
-      
       - key: MOMO_COLLECTION_SUBSCRIPTION_KEY
         sync: false
-      
-      # Environment (sandbox)
       - key: MOMO_ENVIRONMENT
         value: sandbox
-      
-      # API Base URL
       - key: MOMO_API_BASE_URL
         value: https://sandbox.momodeveloper.mtn.com
-      
-      # Webhook Configuration
       - key: MOMO_CALLBACK_URL
         value: https://mofresh-backend.onrender.com/api/v1/webhooks/momo
-      
       - key: MOMO_WEBHOOK_SECRET
         generateValue: true
-      
-      # RATE LIMITING
       - key: THROTTLE_TTL
         value: 60
-      
       - key: THROTTLE_LIMIT
         value: 100
-      
-      # LOGGING
       - key: LOG_LEVEL
         value: info
 
 databases:
-  # PostgreSQL Database for Cold Chain & Marketplace Data
   - name: mofresh-db
     databaseName: mofresh
     user: mofresh
     plan: starter
-    region: frankfurt
