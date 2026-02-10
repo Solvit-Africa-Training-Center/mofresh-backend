@@ -34,14 +34,12 @@ services:
       # AUTHENTICATION & SECURITY
       - key: JWT_SECRET
         generateValue: true
-        sync: false
       
       - key: JWT_EXPIRES_IN
         value: 24h
       
       - key: JWT_REFRESH_SECRET
         generateValue: true
-        sync: false
       
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
@@ -87,7 +85,6 @@ services:
       
       - key: MOMO_WEBHOOK_SECRET
         generateValue: true
-        sync: false
       
       # RATE LIMITING
       - key: THROTTLE_TTL
