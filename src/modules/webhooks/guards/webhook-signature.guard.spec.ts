@@ -15,7 +15,7 @@ describe('WebhookSignatureGuard', () => {
     get: jest.fn((key: string) => {
       const config = {
         MOMO_WEBHOOK_SECRET: 'test-webhook-secret',
-        MOMO_ENVIRONMENT: 'production', // Set to production to test signature verification
+        MOMO_ENVIRONMENT: 'production',
       };
       return config[key];
     }),
@@ -49,6 +49,7 @@ describe('WebhookSignatureGuard', () => {
           getRequest: () => ({
             headers,
             body,
+            rawBody: JSON.stringify(body),
           }),
         }),
       } as ExecutionContext;
