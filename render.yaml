@@ -1,7 +1,7 @@
 services:
   - type: web
     name: mofresh-backend
-    env: node
+    runtime: node
     plan: starter
     branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
