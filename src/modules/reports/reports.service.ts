@@ -87,7 +87,7 @@ export class ReportsService {
       this.prisma.invoice.groupBy({
         by: ['status'],
         where,
-        _count: true,
+        _count: { _all: true },
         _sum: { totalAmount: true },
       }),
       this.prisma.invoice.aggregate({
@@ -103,8 +103,10 @@ export class ReportsService {
     const rentalIncome = rentalIncomeData._sum.totalAmount || 0;
     const totalRevenue = productSales + rentalIncome;
 
-    const paidInvoices = invoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count || 0;
-    const unpaidInvoices = invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count || 0;
+    const paidInvoices =
+      invoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count._all || 0;
+    const unpaidInvoices =
+      invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count._all || 0;
     const totalInvoices = paidInvoices + unpaidInvoices;
 
     const totalPaidAmount = paidData._sum.paidAmount || 0;
@@ -166,7 +168,7 @@ export class ReportsService {
       this.prisma.invoice.groupBy({
         by: ['status'],
         where,
-        _count: true,
+        _count: { _all: true },
         _sum: { totalAmount: true, paidAmount: true },
       }),
       this.prisma.invoice.aggregate({
@@ -182,8 +184,9 @@ export class ReportsService {
     const totalRentalIncome = rentalIncome._sum.totalAmount || 0;
     const totalRevenue = totalProductSales + totalRentalIncome;
 
-    const paidCount = invoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count || 0;
-    const unpaidCount = invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count || 0;
+    const paidCount = invoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count._all || 0;
+    const unpaidCount =
+      invoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count._all || 0;
     const totalInvoices = paidCount + unpaidCount;
 
     const totalPaidAmount = paidAmount._sum.paidAmount || 0;
@@ -208,7 +211,7 @@ export class ReportsService {
           this.prisma.invoice.groupBy({
             by: ['status'],
             where: siteWhere,
-            _count: true,
+            _count: { _all: true },
           }),
         ]);
 
@@ -217,9 +220,9 @@ export class ReportsService {
         const siteTotalRevenue = siteProductSalesTotal + siteRentalIncomeTotal;
 
         const sitePaidCount =
-          siteInvoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count || 0;
+          siteInvoiceStats.find((s) => s.status === InvoiceStatus.PAID)?._count._all || 0;
         const siteUnpaidCount =
-          siteInvoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count || 0;
+          siteInvoiceStats.find((s) => s.status === InvoiceStatus.UNPAID)?._count._all || 0;
         const siteInvoiceCount = sitePaidCount + siteUnpaidCount;
 
         return {

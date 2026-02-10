@@ -372,6 +372,7 @@ describe('PaymentsService', () => {
         mockPayment.invoiceId,
         mockPayment.amount,
         'user-1',
+        undefined,
       );
       expect(mockPrismaService.payment.update).toHaveBeenCalled();
     });

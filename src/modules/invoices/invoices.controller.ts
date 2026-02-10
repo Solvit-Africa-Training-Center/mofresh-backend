@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
@@ -67,7 +68,8 @@ export class InvoicesController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<InvoiceResponseDto> {
     const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
-    return this.invoicesService.generateOrderInvoice(dto.orderId, dueDate, user.id);
+    const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.invoicesService.generateOrderInvoice(dto.orderId, dueDate, user.id, userSiteId);
   }
 
   @Post('generate/rental')
@@ -104,7 +106,8 @@ export class InvoicesController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<InvoiceResponseDto> {
     const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
-    return this.invoicesService.generateRentalInvoice(dto.rentalId, dueDate, user.id);
+    const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.invoicesService.generateRentalInvoice(dto.rentalId, dueDate, user.id, userSiteId);
   }
 
   @Get()
@@ -125,13 +128,18 @@ export class InvoicesController {
     let clientId: string | undefined;
 
     if (user.role === UserRole.SITE_MANAGER) {
-      siteId = user.siteId || undefined;
+      if (!user.siteId) {
+        throw new BadRequestException('Site manager must have a valid site assignment');
+      }
+      siteId = user.siteId;
     } else if (user.role === UserRole.CLIENT) {
       // Clients can only see their own invoices
       clientId = user.id;
     } else if (user.role === UserRole.SUPPLIER) {
-      // Suppliers can only see invoices from their site
-      siteId = user.siteId || undefined;
+      if (!user.siteId) {
+        throw new BadRequestException('Supplier must have a valid site assignment');
+      }
+      siteId = user.siteId;
     }
 
     return this.invoicesService.findAll(query, siteId, clientId);
@@ -166,11 +174,17 @@ export class InvoicesController {
     let clientId: string | undefined;
 
     if (user.role === UserRole.SITE_MANAGER) {
-      siteId = user.siteId || undefined;
+      if (!user.siteId) {
+        throw new BadRequestException('Site manager must have a valid site assignment');
+      }
+      siteId = user.siteId;
     } else if (user.role === UserRole.CLIENT) {
       clientId = user.id;
     } else if (user.role === UserRole.SUPPLIER) {
-      siteId = user.siteId || undefined;
+      if (!user.siteId) {
+        throw new BadRequestException('Supplier must have a valid site assignment');
+      }
+      siteId = user.siteId;
     }
 
     return this.invoicesService.findOne(id, siteId, clientId);
@@ -240,7 +254,8 @@ export class InvoicesController {
     @Body() dto: MarkPaidDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<InvoiceResponseDto> {
-    return this.invoicesService.markPaid(id, dto.paymentAmount, user.id);
+    const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.invoicesService.markPaid(id, dto.paymentAmount, user.id, userSiteId);
   }
 
   @Patch(':id/void')
@@ -277,6 +292,7 @@ export class InvoicesController {
     @Body() dto: VoidInvoiceDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
-    return this.invoicesService.voidInvoice(id, dto.reason, user.id);
+    const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.invoicesService.voidInvoice(id, dto.reason, user.id, userSiteId);
   }
 }

@@ -32,7 +32,13 @@ export class PaymentsController {
   @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   async initiatePayment(@Body() body: InitiatePaymentDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.initiatePayment(body.invoiceId, body.phoneNumber, user.id);
+    return this.paymentsService.initiatePayment(
+      body.invoiceId,
+      body.phoneNumber,
+      user.id,
+      user.role,
+      user.siteId,
+    );
   }
 
   @Post(':id/mark-paid')
@@ -41,7 +47,8 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Manually mark payment as paid' })
   @ApiResponse({ status: 200, description: 'Payment marked as paid' })
   async markPaidManually(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.markPaidManually(id, user.id);
+    const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.paymentsService.markPaidManually(id, user.id, userSiteId);
   }
 
   @Get(':id')

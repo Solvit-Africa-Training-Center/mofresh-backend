@@ -17,12 +17,27 @@ export class PaymentsService {
   /**
    * initiate payment
    */
-  async initiatePayment(invoiceId: string, phoneNumber: string, userId?: string) {
+  async initiatePayment(
+    invoiceId: string,
+    phoneNumber: string,
+    userId?: string,
+    userRole?: string,
+    userSiteId?: string,
+  ) {
     this.logger.log(`Initiating payment for invoice: ${invoiceId}`);
 
     const invoice = await this.invoicesService.findOne(invoiceId);
 
     if (!invoice) {
+      throw new NotFoundException(`Invoice ${invoiceId} not found`);
+    }
+
+    // CLIENT can only pay their own invoices, SITE_MANAGER only their site
+    if (userRole === 'CLIENT' && invoice.clientId !== userId) {
+      throw new NotFoundException(`Invoice ${invoiceId} not found`);
+    }
+
+    if (userRole === 'SITE_MANAGER' && userSiteId && invoice.siteId !== userSiteId) {
       throw new NotFoundException(`Invoice ${invoiceId} not found`);
     }
 
@@ -264,14 +279,20 @@ export class PaymentsService {
   /**
    * mark payment as paid manually
    */
-  async markPaidManually(paymentId: string, userId: string) {
+  async markPaidManually(paymentId: string, userId: string, userSiteId?: string) {
     this.logger.log(`Manually marking payment ${paymentId} as paid`);
 
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
+      include: { invoice: true },
     });
 
     if (!payment) {
+      throw new NotFoundException(`Payment ${paymentId} not found`);
+    }
+
+    // site scoping for non-SUPER_ADMIN users
+    if (userSiteId && payment.invoice.siteId !== userSiteId) {
       throw new NotFoundException(`Payment ${paymentId} not found`);
     }
 
@@ -290,7 +311,7 @@ export class PaymentsService {
     });
 
     // mark invoice as paid
-    await this.invoicesService.markPaid(payment.invoiceId, payment.amount, userId);
+    await this.invoicesService.markPaid(payment.invoiceId, payment.amount, userId, userSiteId);
 
     return updatedPayment;
   }
@@ -314,14 +335,17 @@ export class PaymentsService {
     if (userId && userRole) {
       const invoice = payment.invoice;
 
-      // CLIENT can only view their own payments
       if (userRole === 'CLIENT' && invoice.clientId !== userId) {
         throw new NotFoundException(`Payment ${id} not found`);
       }
 
-      // SITE_MANAGER can only view payments from their site
-      if (userRole === 'SITE_MANAGER' && userSiteId && invoice.siteId !== userSiteId) {
-        throw new NotFoundException(`Payment ${id} not found`);
+      if (userRole === 'SITE_MANAGER') {
+        if (!userSiteId) {
+          throw new BadRequestException('Site manager must have a valid site assignment');
+        }
+        if (invoice.siteId !== userSiteId) {
+          throw new NotFoundException(`Payment ${id} not found`);
+        }
       }
     }
 

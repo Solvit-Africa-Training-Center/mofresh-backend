@@ -19,6 +19,7 @@ export class InvoicesService {
     orderId: string,
     dueDate?: Date,
     userId?: string,
+    userSiteId?: string,
   ): Promise<InvoiceResponseDto> {
     this.logger.log(`Generating invoice for order: ${orderId}`);
 
@@ -45,6 +46,11 @@ export class InvoicesService {
       });
 
       if (!order) {
+        throw new NotFoundException(`Order with ID ${orderId} not found`);
+      }
+
+      // Enforce site scoping for non-SUPER_ADMIN users
+      if (userSiteId && order.siteId !== userSiteId) {
         throw new NotFoundException(`Order with ID ${orderId} not found`);
       }
 
@@ -134,6 +140,7 @@ export class InvoicesService {
     rentalId: string,
     dueDate?: Date,
     userId?: string,
+    userSiteId?: string,
   ): Promise<InvoiceResponseDto> {
     this.logger.log(`Generating invoice for rental: ${rentalId}`);
 
@@ -158,6 +165,11 @@ export class InvoicesService {
       });
 
       if (!rental) {
+        throw new NotFoundException(`Rental with ID ${rentalId} not found`);
+      }
+
+      // Enforce site scoping for non-SUPER_ADMIN users
+      if (userSiteId && rental.siteId !== userSiteId) {
         throw new NotFoundException(`Rental with ID ${rentalId} not found`);
       }
 
@@ -481,6 +493,7 @@ export class InvoicesService {
     invoiceId: string,
     paymentAmount: number,
     userId: string,
+    userSiteId?: string,
   ): Promise<InvoiceResponseDto> {
     this.logger.log(`Marking invoice ${invoiceId} as paid: ${paymentAmount}`);
 
@@ -491,6 +504,11 @@ export class InvoicesService {
       });
 
       if (!invoice) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
+
+      // Enforce site scoping for non-SUPER_ADMIN users
+      if (userSiteId && invoice.siteId !== userSiteId) {
         throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
       }
 
@@ -539,7 +557,12 @@ export class InvoicesService {
    * void an invoice (cannot be undone)
    * only unpaid invoices can be voided
    */
-  async voidInvoice(invoiceId: string, reason: string, userId: string): Promise<void> {
+  async voidInvoice(
+    invoiceId: string,
+    reason: string,
+    userId: string,
+    userSiteId?: string,
+  ): Promise<void> {
     this.logger.log(`Voiding invoice ${invoiceId}: ${reason}`);
 
     await this.prisma.$transaction(async (tx) => {
@@ -548,6 +571,11 @@ export class InvoicesService {
       });
 
       if (!invoice) {
+        throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
+      }
+
+      // enforce site scoping for non-SUPER_ADMIN users
+      if (userSiteId && invoice.siteId !== userSiteId) {
         throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
       }
 

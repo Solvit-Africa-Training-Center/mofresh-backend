@@ -34,13 +34,11 @@ export class WebhookSignatureGuard implements CanActivate {
       );
     }
 
-    const request = context.switchToHttp().getRequest<
-      Request & {
-        headers: Record<string, string>;
-        body: Record<string, unknown>;
-        rawBody?: string;
-      }
-    >();
+    const request = context.switchToHttp().getRequest<{
+      headers: Record<string, string>;
+      body: Record<string, unknown>;
+      rawBody?: string;
+    }>();
     const signature = request.headers['x-signature'] || request.headers['x-momo-signature'];
 
     if (!signature) {

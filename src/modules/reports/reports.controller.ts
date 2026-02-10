@@ -1,5 +1,13 @@
-import { Controller, Get, Query, Logger, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Query, Logger, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import {
   RevenueReportQueryDto,
@@ -17,6 +25,7 @@ import { UserRole } from '@prisma/client';
 @Controller('reports')
 @UseGuards(RolesGuard)
 @ApiBearerAuth()
+@ApiExtraModels(RevenueReportResponseDto, AggregatedRevenueReportDto)
 export class ReportsController {
   private readonly logger = new Logger(ReportsController.name);
 
@@ -33,7 +42,12 @@ export class ReportsController {
   @ApiResponse({
     status: 200,
     description: 'Revenue report generated successfully',
-    type: RevenueReportResponseDto,
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(RevenueReportResponseDto) },
+        { $ref: getSchemaPath(AggregatedRevenueReportDto) },
+      ],
+    },
   })
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
@@ -44,7 +58,16 @@ export class ReportsController {
   ): Promise<RevenueReportResponseDto | AggregatedRevenueReportDto> {
     this.logger.log('Revenue report requested', { query });
 
-    const userSiteId = user?.role === UserRole.SUPER_ADMIN ? undefined : user?.siteId;
+    let userSiteId: string | undefined;
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      userSiteId = undefined; // Can access all sites
+    } else if (user.role === UserRole.SITE_MANAGER) {
+      if (!user.siteId) {
+        throw new BadRequestException('Site manager must have a valid site assignment');
+      }
+      userSiteId = user.siteId;
+    }
 
     return this.reportsService.getRevenueReport(query, userSiteId);
   }
@@ -72,7 +95,16 @@ export class ReportsController {
   ): Promise<UnpaidInvoicesReportDto> {
     this.logger.log('Unpaid invoices report requested', { query });
 
-    const userSiteId = user?.role === UserRole.SUPER_ADMIN ? undefined : user?.siteId;
+    let userSiteId: string | undefined;
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      userSiteId = undefined;
+    } else if (user.role === UserRole.SITE_MANAGER) {
+      if (!user.siteId) {
+        throw new BadRequestException('Site manager must have a valid site assignment');
+      }
+      userSiteId = user.siteId;
+    }
 
     return this.reportsService.getUnpaidInvoicesReport(query, userSiteId);
   }

@@ -58,8 +58,8 @@ describe('ReportsService', () => {
         .mockResolvedValueOnce({ _sum: { paidAmount: 700000 } }); // paid amount
 
       mockPrismaService.invoice.groupBy.mockResolvedValue([
-        { status: InvoiceStatus.PAID, _count: 12, _sum: { totalAmount: 700000 } },
-        { status: InvoiceStatus.UNPAID, _count: 3, _sum: { totalAmount: 150000 } },
+        { status: InvoiceStatus.PAID, _count: { _all: 12 }, _sum: { totalAmount: 700000 } },
+        { status: InvoiceStatus.UNPAID, _count: { _all: 3 }, _sum: { totalAmount: 150000 } },
       ]);
 
       mockPrismaService.invoice.findMany.mockResolvedValue([]);
@@ -145,18 +145,22 @@ describe('ReportsService', () => {
         .mockResolvedValueOnce([
           {
             status: InvoiceStatus.PAID,
-            _count: 20,
+            _count: { _all: 20 },
             _sum: { totalAmount: 1100000, paidAmount: 1100000 },
           },
-          { status: InvoiceStatus.UNPAID, _count: 5, _sum: { totalAmount: 200000, paidAmount: 0 } },
+          {
+            status: InvoiceStatus.UNPAID,
+            _count: { _all: 5 },
+            _sum: { totalAmount: 200000, paidAmount: 0 },
+          },
         ])
         .mockResolvedValueOnce([
-          { status: InvoiceStatus.PAID, _count: 12 },
-          { status: InvoiceStatus.UNPAID, _count: 3 },
+          { status: InvoiceStatus.PAID, _count: { _all: 12 } },
+          { status: InvoiceStatus.UNPAID, _count: { _all: 3 } },
         ])
         .mockResolvedValueOnce([
-          { status: InvoiceStatus.PAID, _count: 8 },
-          { status: InvoiceStatus.UNPAID, _count: 2 },
+          { status: InvoiceStatus.PAID, _count: { _all: 8 } },
+          { status: InvoiceStatus.UNPAID, _count: { _all: 2 } },
         ]);
 
       const result = await service.getRevenueReport(
