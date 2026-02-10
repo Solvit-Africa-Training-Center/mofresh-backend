@@ -2,17 +2,12 @@ services:
   # MoFresh Backend - Integrated Cold Chain Management & Digital Agricultural Marketplace
   - type: web
     name: mofresh-backend
-    env: node
+    runtime: node
     region: frankfurt
     plan: starter
-    branch: main
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start:prod
     healthCheckPath: /api/v1/health
-    autoDeploy: true
-    
-    # Resource Configuration
-    numInstances: 1
     
     envVars:
       # APPLICATION CONFIGURATION
