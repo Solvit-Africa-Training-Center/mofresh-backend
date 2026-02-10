@@ -212,7 +212,15 @@ export class MtnMomoService {
       .update(payload)
       .digest('hex');
 
-    return expectedSignature === signature;
+    // time-safe comparison to prevent timing attacks
+    if (expectedSignature.length !== signature.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSignature, 'hex'),
+      Buffer.from(signature, 'hex'),
+    );
   }
 
   /**
