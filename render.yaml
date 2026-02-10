@@ -1,12 +1,15 @@
 services:
   - type: web
     name: mofresh-backend
-    runtime: node
+    env: node
+    region: frankfurt
     plan: starter
     branch: main
+    repo: https://github.com/Solvit-Africa-Training-Center/mofresh-backend
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run start:prod
     healthCheckPath: /api/v1/health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
@@ -62,3 +65,4 @@ databases:
     databaseName: mofresh
     user: mofresh
     plan: starter
+    region: frankfurt
