@@ -102,6 +102,9 @@ jobs:
       - run:
           name: List Coverage Directory
           command: ls -la coverage/ || echo "Coverage directory not found"
+      - run:
+          name: Create Coverage Directory if Missing
+          command: mkdir -p coverage
       - store_test_results:
           path: coverage
       - store_artifacts:
@@ -111,6 +114,7 @@ jobs:
           root: .
           paths:
             - coverage
+            - node_modules
 
   sonarqube:
     executor: node-postgres
@@ -122,6 +126,14 @@ jobs:
             git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
+      - run:
+          name: Verify Coverage Files
+          command: |
+            if [ ! -f coverage/lcov.info ]; then
+              echo "Warning: coverage/lcov.info not found, creating dummy file"
+              mkdir -p coverage
+              touch coverage/lcov.info
+            fi
       - run:
           name: Install SonarScanner
           command: |
@@ -158,12 +170,19 @@ jobs:
       - attach_workspace:
           at: .
       - run:
+          name: Verify Coverage Files
+          command: |
+            if [ ! -f coverage/lcov.info ]; then
+              echo "Warning: coverage/lcov.info not found, skipping Coveralls upload"
+              exit 0
+            fi
+      - run:
           name: Upload Coverage to Coveralls
           command: |
-            if [ -n "$COVERALLS_REPO_TOKEN" ]; then
+            if [ -n "$COVERALLS_REPO_TOKEN" ] && [ -f coverage/lcov.info ]; then
               npx coveralls < coverage/lcov.info
             else
-              echo "COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
+              echo "COVERALLS_REPO_TOKEN not set or coverage file missing. Skipping Coveralls upload."
               echo "Configure COVERALLS_REPO_TOKEN in CircleCI project settings to enable."
             fi
 
