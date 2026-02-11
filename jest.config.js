@@ -16,4 +16,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)',
+  ],
 };
