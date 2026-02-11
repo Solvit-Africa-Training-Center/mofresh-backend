@@ -11,28 +11,13 @@ module.exports = {
     '!**/main.ts',
     '!**/*.interface.ts',
   ],
-  coverageDirectory: '../coverage',
-  coverageReporters: ['json', 'lcov', 'text', 'html', 'json-summary'],
+  coverageReporters: ['clover', 'text', 'lcov'], 
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    '^uuid$': '<rootDir>/../node_modules/uuid/dist/index.js',
+    '^uuid$': require.resolve('uuid'),
   },
   transformIgnorePatterns: [
     'node_modules/(?!(uuid)/)',
-  ],
-  reporters: [
-    'default',
-    [
-      'jest-junit',
-      {
-        outputDirectory: './coverage',
-        outputName: 'junit.xml',
-        classNameTemplate: '{classname}',
-        titleTemplate: '{title}',
-        ancestorSeparator: ' › ',
-        usePathForSuiteName: true,
-      },
-    ],
   ],
 };

@@ -14,6 +14,7 @@ describe('ReportsController', () => {
 
   const mockUser: AuthenticatedUser = {
     id: 'user-1',
+    userId: 'user-1',
     email: 'admin@mofresh.com',
     role: UserRole.SUPER_ADMIN,
     siteId: undefined,
@@ -21,6 +22,7 @@ describe('ReportsController', () => {
 
   const mockSiteManagerUser: AuthenticatedUser = {
     id: 'user-2',
+    userId: 'user-2',
     email: 'manager@mofresh.com',
     role: UserRole.SITE_MANAGER,
     siteId: 'site-1',
