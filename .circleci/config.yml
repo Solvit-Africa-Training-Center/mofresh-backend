@@ -91,6 +91,9 @@ jobs:
           name: Run Database Migrations
           command: npx prisma migrate deploy
       - run:
+          name: Seed Database for E2E Tests
+          command: npx prisma db seed
+      - run:
           name: Run Unit Tests with Coverage
           command: npm run test:cov
       - run:
