@@ -111,7 +111,7 @@ export class MtnMomoService {
 
       this.logger.log('MTN MoMo access token obtained successfully');
       return token;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to obtain MTN MoMo access token', this.getErrorDetails(error));
       throw new HttpException('Failed to authenticate with MTN MoMo', 500);
     }
