@@ -156,7 +156,7 @@ export class MtnMomoService {
 
       this.logger.log(`MTN MoMo payment initiated. Reference ID: ${referenceId}`);
       return referenceId;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('MTN MoMo request to pay failed', this.getErrorDetails(error));
       throw this.handleMoMoError(error);
     }
@@ -184,7 +184,7 @@ export class MtnMomoService {
       const responseData = response.data as MoMoPaymentResponse;
       this.logger.log(`Transaction ${referenceId} status: ${responseData.status}`);
       return responseData;
-    } catch (error) {
+    } catch (error: unknown) {
       this.logger.error('Failed to check transaction status', this.getErrorDetails(error));
       throw this.handleMoMoError(error);
     }
