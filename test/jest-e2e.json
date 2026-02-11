@@ -8,8 +8,5 @@
   },
   "transformIgnorePatterns": [
     "node_modules/(?!(uuid)/)"
-  ],
-  "moduleNameMapper": {
-    "^uuid$": "<rootDir>/../node_modules/uuid/dist/index.js"
-  }
+  ]
 }
