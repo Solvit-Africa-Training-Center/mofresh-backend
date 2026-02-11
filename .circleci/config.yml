@@ -99,10 +99,13 @@ jobs:
       - run:
           name: Run E2E Tests
           command: npm run test:e2e
+      - run:
+          name: List Coverage Directory
+          command: ls -la coverage/ || echo "Coverage directory not found"
       - store_test_results:
-          path: ./coverage
+          path: coverage
       - store_artifacts:
-          path: ./coverage
+          path: coverage
           destination: coverage
       - persist_to_workspace:
           root: .
