@@ -10,6 +10,18 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/database/prisma.service';
 import { AuditAction } from '@prisma/client';
 
+// test credentials - only for e2e testing
+const TEST_CREDENTIALS = {
+  CLIENT: {
+    email: 'client1@example.rw',
+    password: process.env.TEST_PASSWORD || 'Password123!',
+  },
+  ADMIN: {
+    email: 'admin@mofresh.rw',
+    password: process.env.TEST_PASSWORD || 'Password123!',
+  },
+};
+
 describe('Auth & Audit Logs (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -41,10 +53,7 @@ describe('Auth & Audit Logs (e2e)', () => {
     it('should login as client (no OTP) and create an audit log', async () => {
       const loginResponse = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .send({
-          email: 'client1@example.rw',
-          password: 'Password123!',
-        })
+        .send(TEST_CREDENTIALS.CLIENT)
         .expect(201);
 
       expect(loginResponse.body).toHaveProperty('accessToken');
@@ -65,10 +74,9 @@ describe('Auth & Audit Logs (e2e)', () => {
     });
 
     it('should login as admin and create an audit log', async () => {
-      const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
-        email: 'admin@mofresh.rw',
-        password: 'Password123!',
-      });
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send(TEST_CREDENTIALS.ADMIN);
 
       console.log('Admin login response:', loginResponse.body);
       expect(loginResponse.status).toBe(201);
@@ -77,7 +85,7 @@ describe('Auth & Audit Logs (e2e)', () => {
         let otp = null;
         for (let i = 0; i < 5; i++) {
           otp = await prisma.otp.findFirst({
-            where: { email: 'admin@mofresh.rw' },
+            where: { email: TEST_CREDENTIALS.ADMIN.email },
             orderBy: { createdAt: 'desc' },
           });
           if (otp) break;
@@ -89,7 +97,7 @@ describe('Auth & Audit Logs (e2e)', () => {
         const verifyResponse = await request(app.getHttpServer())
           .post('/api/v1/auth/verify-otp')
           .send({
-            email: 'admin@mofresh.rw',
+            email: TEST_CREDENTIALS.ADMIN.email,
             code: otp?.code,
           });
 
