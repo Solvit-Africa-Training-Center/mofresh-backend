@@ -1,6 +1,3 @@
-// This is your Prisma schema file
-// Learn more: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -96,6 +93,8 @@ enum AuditAction {
   APPROVE
   REJECT
   PAYMENT_RECEIVED
+  LOGIN
+  LOGOUT
 }
 
 // ===== MODELS =====
@@ -107,6 +106,7 @@ model User {
   firstName             String
   lastName              String
   phone                 String            @unique
+  refreshToken          String?            //Store the HASHED refresh token here
   role                  UserRole
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
@@ -124,6 +124,7 @@ model User {
   createdStockMovements StockMovement[]   @relation("CreatedBy")
   approvedOrders        Order[]           @relation("ApprovedBy")
   paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
+  otps                  Otp[]             @relation("UserOtps")
 
   @@index([email])
   @@index([role])
@@ -131,9 +132,28 @@ model User {
   @@map("users")
 }
 
+
+model Otp {
+  id        String   @id @default(uuid())
+  email     String  
+  code      String   
+  userId    String?  // Optional: link to existing user
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User?    @relation("UserOtps", fields: [userId], references: [id])
+
+  @@index([email])
+  @@index([userId])
+  @@unique([email, code])
+  @@map("otps")
+}
+
+
 model Site {
   id         String      @id @default(uuid())
-  name       String
+  name       String      @unique
   location   String
   managerId  String?     @unique
   createdAt  DateTime    @default(now())

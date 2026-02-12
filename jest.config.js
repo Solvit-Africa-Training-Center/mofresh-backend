@@ -11,9 +11,12 @@ module.exports = {
     '!**/main.ts',
     '!**/*.interface.ts',
   ],
-  coverageDirectory: '../coverage',
+  coverageReporters: ['clover', 'text', 'lcov'], 
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)',
+  ],
 };

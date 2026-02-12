@@ -1,4 +1,12 @@
-import { PrismaClient, UserRole, PowerType, AssetStatus, ProductStatus, TricycleCategory } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  PrismaClient,
+  UserRole,
+  PowerType,
+  AssetStatus,
+  ProductStatus,
+  TricycleCategory,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -29,10 +37,12 @@ async function main() {
   // Hash password for all users
   const hashedPassword = await bcrypt.hash('Password123!', 10);
 
-  // 1. Create Super Admin (no site)
-  console.log('👤 Creating Super Admin...');
-  const superAdmin = await prisma.user.create({
-    data: {
+  // 1. Create Super Admins
+  console.log('👤 Creating Super Admins...');
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'admin@mofresh.rw' },
+    update: {},
+    create: {
       email: 'admin@mofresh.rw',
       password: hashedPassword,
       firstName: 'Super',
@@ -43,33 +53,45 @@ async function main() {
     },
   });
 
+  const superAdmin2 = await prisma.user.upsert({
+    where: { email: 'irakozeflamanc+5@gmail.com' },
+    update: {},
+    create: {
+      email: 'irakozeflamanc+5@gmail.com',
+      password: hashedPassword,
+      firstName: 'flaman',
+      lastName: 'super Admin',
+      phone: '+250788001111',
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+    },
+  });
+
   // 2. Create 3 Sites
   console.log('🏢 Creating sites...');
-  const site1 = await prisma.site.create({
-    data: {
-      name: 'MoFresh Kigali',
-      location: 'Kigali, Rwanda',
-    },
-  });
+  const sitesData = [
+    { name: 'MoFresh Kigali', location: 'Kigali, Rwanda' },
+    { name: 'MoFresh Musanze', location: 'Musanze, Rwanda' },
+    { name: 'MoFresh Rubavu', location: 'Rubavu, Rwanda' },
+  ];
 
-  const site2 = await prisma.site.create({
-    data: {
-      name: 'MoFresh Musanze',
-      location: 'Musanze, Rwanda',
-    },
-  });
-
-  const site3 = await prisma.site.create({
-    data: {
-      name: 'MoFresh Rubavu',
-      location: 'Rubavu, Rwanda',
-    },
-  });
+  const sites = [];
+  for (const data of sitesData) {
+    // Try to find by name first to avoid duplicates
+    let site = await prisma.site.findFirst({ where: { name: data.name } });
+    if (!site) {
+      site = await prisma.site.create({ data });
+    }
+    sites.push(site);
+  }
+  const [site1, site2, site3] = sites;
 
   // 3. Create Site Managers
   console.log('👥 Creating Site Managers...');
-  const manager1 = await prisma.user.create({
-    data: {
+  const manager1 = await prisma.user.upsert({
+    where: { email: 'manager1@mofresh.rw' },
+    update: { siteId: site1.id },
+    create: {
       email: 'manager1@mofresh.rw',
       password: hashedPassword,
       firstName: 'John',
@@ -81,8 +103,10 @@ async function main() {
     },
   });
 
-  const manager2 = await prisma.user.create({
-    data: {
+  const manager2 = await prisma.user.upsert({
+    where: { email: 'manager2@mofresh.rw' },
+    update: { siteId: site2.id },
+    create: {
       email: 'manager2@mofresh.rw',
       password: hashedPassword,
       firstName: 'Alice',
@@ -94,12 +118,14 @@ async function main() {
     },
   });
 
-  const manager3 = await prisma.user.create({
-    data: {
-      email: 'manager3@mofresh.rw',
+  const manager3 = await prisma.user.upsert({
+    where: { email: 'irakozeflamanc+6@gmail.com' },
+    update: { siteId: site3.id },
+    create: {
+      email: 'irakozeflamanc+6@gmail.com',
       password: hashedPassword,
-      firstName: 'David',
-      lastName: 'Niyonzima',
+      firstName: 'flaman',
+      lastName: 'site manager',
       phone: '+250788333333',
       role: UserRole.SITE_MANAGER,
       siteId: site3.id,
@@ -107,26 +133,35 @@ async function main() {
     },
   });
 
-  // Update sites with manager references
-  await prisma.site.update({
-    where: { id: site1.id },
-    data: { managerId: manager1.id },
-  });
+  // Update sites with manager references (if not already set)
+  // Note: Site.managerId is unique. We must check if the manager is already linked.
+  const updateSiteWithManager = async (siteId: string, managerId: string) => {
+    const site = await prisma.site.findUnique({ where: { id: siteId } });
+    if (site && site.managerId !== managerId) {
+      // Check if this manager is already assigned to ANY site
+      const otherSite = await prisma.site.findUnique({ where: { managerId } });
+      if (otherSite) {
+        // Unlink or handle as needed. For seeder, we just skip or update carefully.
+        console.log(`⚠️ Manager ${managerId} already assigned to site ${otherSite.id}`);
+      } else {
+        await prisma.site.update({
+          where: { id: siteId },
+          data: { managerId },
+        });
+      }
+    }
+  };
 
-  await prisma.site.update({
-    where: { id: site2.id },
-    data: { managerId: manager2.id },
-  });
-
-  await prisma.site.update({
-    where: { id: site3.id },
-    data: { managerId: manager3.id },
-  });
+  await updateSiteWithManager(site1.id, manager1.id);
+  await updateSiteWithManager(site2.id, manager2.id);
+  await updateSiteWithManager(site3.id, manager3.id);
 
   // 4. Create Suppliers
   console.log('🚚 Creating Suppliers...');
-  const supplier1 = await prisma.user.create({
-    data: {
+  const supplier1 = await prisma.user.upsert({
+    where: { email: 'supplier1@mofresh.rw' },
+    update: { siteId: site1.id },
+    create: {
       email: 'supplier1@mofresh.rw',
       password: hashedPassword,
       firstName: 'Emmanuel',
@@ -138,8 +173,10 @@ async function main() {
     },
   });
 
-  const supplier2 = await prisma.user.create({
-    data: {
+  const supplier2 = await prisma.user.upsert({
+    where: { email: 'supplier2@mofresh.rw' },
+    update: { siteId: site2.id },
+    create: {
       email: 'supplier2@mofresh.rw',
       password: hashedPassword,
       firstName: 'Grace',
@@ -153,8 +190,10 @@ async function main() {
 
   // 5. Create Clients
   console.log('🛒 Creating Clients...');
-  const client1 = await prisma.user.create({
-    data: {
+  const client1 = await prisma.user.upsert({
+    where: { email: 'client1@example.rw' },
+    update: { siteId: site1.id },
+    create: {
       email: 'client1@example.rw',
       password: hashedPassword,
       firstName: 'Patrick',
@@ -166,8 +205,10 @@ async function main() {
     },
   });
 
-  const client2 = await prisma.user.create({
-    data: {
+  const client2 = await prisma.user.upsert({
+    where: { email: 'client2@example.rw' },
+    update: { siteId: site2.id },
+    create: {
       email: 'client2@example.rw',
       password: hashedPassword,
       firstName: 'Sarah',
@@ -181,173 +222,85 @@ async function main() {
 
   // 6. Create Cold Rooms
   console.log('❄️ Creating Cold Rooms...');
-  const coldRoom1 = await prisma.coldRoom.create({
-    data: {
-      name: 'Cold Room 1A',
-      siteId: site1.id,
-      totalCapacityKg: 5000,
-      usedCapacityKg: 0,
-      temperatureMin: -2,
-      temperatureMax: 5,
-      powerType: PowerType.GRID,
-    },
-  });
+  const coldRoomsData = [
+    { name: 'Cold Room 1A', siteId: site1.id, totalCapacityKg: 5000, temperatureMin: -2, temperatureMax: 5, powerType: PowerType.GRID },
+    { name: 'Cold Room 2A', siteId: site2.id, totalCapacityKg: 3000, temperatureMin: -5, temperatureMax: 2, powerType: PowerType.HYBRID },
+    { name: 'Cold Room 3A', siteId: site3.id, totalCapacityKg: 4000, temperatureMin: 0, temperatureMax: 8, powerType: PowerType.OFF_GRID },
+  ];
 
-  const coldRoom2 = await prisma.coldRoom.create({
-    data: {
-      name: 'Cold Room 2A',
-      siteId: site2.id,
-      totalCapacityKg: 3000,
-      usedCapacityKg: 0,
-      temperatureMin: -5,
-      temperatureMax: 2,
-      powerType: PowerType.HYBRID,
-    },
-  });
-
-  const coldRoom3 = await prisma.coldRoom.create({
-    data: {
-      name: 'Cold Room 3A',
-      siteId: site3.id,
-      totalCapacityKg: 4000,
-      usedCapacityKg: 0,
-      temperatureMin: 0,
-      temperatureMax: 8,
-      powerType: PowerType.OFF_GRID,
-    },
-  });
+  const coldRooms = [];
+  for (const data of coldRoomsData) {
+    let room = await prisma.coldRoom.findFirst({ where: { name: data.name, siteId: data.siteId } });
+    if (!room) {
+      room = await prisma.coldRoom.create({ data });
+    }
+    coldRooms.push(room);
+  }
+  const [coldRoom1, coldRoom2, coldRoom3] = coldRooms;
 
   // 7. Create Cold Boxes
   console.log('📦 Creating Cold Boxes...');
-  await prisma.coldBox.createMany({
-    data: [
-      {
-        identificationNumber: 'CB-KGL-001',
-        sizeOrCapacity: '50L',
-        siteId: site1.id,
-        location: 'Warehouse A',
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        identificationNumber: 'CB-KGL-002',
-        sizeOrCapacity: '100L',
-        siteId: site1.id,
-        location: 'Warehouse A',
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        identificationNumber: 'CB-MUS-001',
-        sizeOrCapacity: '75L',
-        siteId: site2.id,
-        location: 'Storage Room B',
-        status: AssetStatus.AVAILABLE,
-      },
-    ],
-  });
+  const coldBoxesData = [
+    { identificationNumber: 'CB-KGL-001', sizeOrCapacity: '50L', siteId: site1.id, location: 'Warehouse A', status: AssetStatus.AVAILABLE },
+    { identificationNumber: 'CB-KGL-002', sizeOrCapacity: '100L', siteId: site1.id, location: 'Warehouse A', status: AssetStatus.AVAILABLE },
+    { identificationNumber: 'CB-MUS-001', sizeOrCapacity: '75L', siteId: site2.id, location: 'Storage Room B', status: AssetStatus.AVAILABLE },
+  ];
+
+  for (const data of coldBoxesData) {
+    await prisma.coldBox.upsert({
+      where: { identificationNumber: data.identificationNumber },
+      update: data,
+      create: data,
+    });
+  }
 
   // 8. Create Cold Plates
   console.log('🧊 Creating Cold Plates...');
-  await prisma.coldPlate.createMany({
-    data: [
-      {
-        identificationNumber: 'CP-KGL-001',
-        coolingSpecification: '-10°C for 8 hours',
-        siteId: site1.id,
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        identificationNumber: 'CP-KGL-002',
-        coolingSpecification: '-5°C for 6 hours',
-        siteId: site1.id,
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        identificationNumber: 'CP-MUS-001',
-        coolingSpecification: '-8°C for 10 hours',
-        siteId: site2.id,
-        status: AssetStatus.AVAILABLE,
-      },
-    ],
-  });
+  const coldPlatesData = [
+    { identificationNumber: 'CP-KGL-001', coolingSpecification: '-10°C for 8 hours', siteId: site1.id, status: AssetStatus.AVAILABLE },
+    { identificationNumber: 'CP-KGL-002', coolingSpecification: '-5°C for 6 hours', siteId: site1.id, status: AssetStatus.AVAILABLE },
+    { identificationNumber: 'CP-MUS-001', coolingSpecification: '-8°C for 10 hours', siteId: site2.id, status: AssetStatus.AVAILABLE },
+  ];
+
+  for (const data of coldPlatesData) {
+    await prisma.coldPlate.upsert({
+      where: { identificationNumber: data.identificationNumber },
+      update: data,
+      create: data,
+    });
+  }
 
   // 9. Create Tricycles
   console.log('🚲 Creating Tricycles...');
-  await prisma.tricycle.createMany({
-    data: [
-      {
-        plateNumber: 'TC-KGL-001',
-        siteId: site1.id,
-        capacity: '200kg',
-        category: TricycleCategory.DAIRY,
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        plateNumber: 'TC-MUS-001',
-        siteId: site2.id,
-        capacity: '150kg',
-        category: TricycleCategory.FRUITS_VEGETABLES,
-        status: AssetStatus.AVAILABLE,
-      },
-      {
-        plateNumber: 'TC-RUB-001',
-        siteId: site3.id,
-        capacity: '180kg',
-        category: TricycleCategory.MEAT,
-        status: AssetStatus.AVAILABLE,
-      },
-    ],
-  });
+  const tricyclesData = [
+    { plateNumber: 'TC-KGL-001', siteId: site1.id, capacity: '200kg', category: TricycleCategory.DAIRY, status: AssetStatus.AVAILABLE },
+    { plateNumber: 'TC-MUS-001', siteId: site2.id, capacity: '150kg', category: TricycleCategory.FRUITS_VEGETABLES, status: AssetStatus.AVAILABLE },
+    { plateNumber: 'TC-RUB-001', siteId: site3.id, capacity: '180kg', category: TricycleCategory.MEAT, status: AssetStatus.AVAILABLE },
+  ];
+
+  for (const data of tricyclesData) {
+    await prisma.tricycle.upsert({
+      where: { plateNumber: data.plateNumber },
+      update: data,
+      create: data,
+    });
+  }
 
   // 10. Create Products
   console.log('🥛 Creating Products...');
-  await prisma.product.createMany({
-    data: [
-      {
-        name: 'Fresh Milk',
-        category: 'Dairy',
-        quantityKg: 500,
-        unit: 'Liters',
-        supplierId: supplier1.id,
-        coldRoomId: coldRoom1.id,
-        sellingPricePerUnit: 1000,
-        siteId: site1.id,
-        status: ProductStatus.IN_STOCK,
-      },
-      {
-        name: 'Cheese',
-        category: 'Dairy',
-        quantityKg: 100,
-        unit: 'Kg',
-        supplierId: supplier1.id,
-        coldRoomId: coldRoom1.id,
-        sellingPricePerUnit: 5000,
-        siteId: site1.id,
-        status: ProductStatus.IN_STOCK,
-      },
-      {
-        name: 'Tomatoes',
-        category: 'Vegetables',
-        quantityKg: 300,
-        unit: 'Kg',
-        supplierId: supplier2.id,
-        coldRoomId: coldRoom2.id,
-        sellingPricePerUnit: 800,
-        siteId: site2.id,
-        status: ProductStatus.IN_STOCK,
-      },
-      {
-        name: 'Beef',
-        category: 'Meat',
-        quantityKg: 200,
-        unit: 'Kg',
-        supplierId: supplier2.id,
-        coldRoomId: coldRoom2.id,
-        sellingPricePerUnit: 4500,
-        siteId: site2.id,
-        status: ProductStatus.IN_STOCK,
-      },
-    ],
-  });
+  const productsData = [
+    { name: 'Fresh Milk', category: 'Dairy', quantityKg: 500, unit: 'Liters', supplierId: supplier1.id, coldRoomId: coldRoom1.id, sellingPricePerUnit: 1000, siteId: site1.id, status: ProductStatus.IN_STOCK },
+    { name: 'Cheese', category: 'Dairy', quantityKg: 100, unit: 'Kg', supplierId: supplier1.id, coldRoomId: coldRoom1.id, sellingPricePerUnit: 5000, siteId: site1.id, status: ProductStatus.IN_STOCK },
+    { name: 'Tomatoes', category: 'Vegetables', quantityKg: 300, unit: 'Kg', supplierId: supplier2.id, coldRoomId: coldRoom2.id, sellingPricePerUnit: 800, siteId: site2.id, status: ProductStatus.IN_STOCK },
+    { name: 'Beef', category: 'Meat', quantityKg: 200, unit: 'Kg', supplierId: supplier2.id, coldRoomId: coldRoom2.id, sellingPricePerUnit: 4500, siteId: site2.id, status: ProductStatus.IN_STOCK },
+  ];
+
+  for (const data of productsData) {
+    const existing = await prisma.product.findFirst({ where: { name: data.name, siteId: data.siteId } });
+    if (!existing) {
+      await prisma.product.create({ data });
+    }
+  }
 
   // Update cold room capacities
   await prisma.coldRoom.update({
