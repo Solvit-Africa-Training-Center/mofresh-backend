@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   PrismaClient,
@@ -223,9 +226,30 @@ async function main() {
   // 6. Create Cold Rooms
   console.log('❄️ Creating Cold Rooms...');
   const coldRoomsData = [
-    { name: 'Cold Room 1A', siteId: site1.id, totalCapacityKg: 5000, temperatureMin: -2, temperatureMax: 5, powerType: PowerType.GRID },
-    { name: 'Cold Room 2A', siteId: site2.id, totalCapacityKg: 3000, temperatureMin: -5, temperatureMax: 2, powerType: PowerType.HYBRID },
-    { name: 'Cold Room 3A', siteId: site3.id, totalCapacityKg: 4000, temperatureMin: 0, temperatureMax: 8, powerType: PowerType.OFF_GRID },
+    {
+      name: 'Cold Room 1A',
+      siteId: site1.id,
+      totalCapacityKg: 5000,
+      temperatureMin: -2,
+      temperatureMax: 5,
+      powerType: PowerType.GRID,
+    },
+    {
+      name: 'Cold Room 2A',
+      siteId: site2.id,
+      totalCapacityKg: 3000,
+      temperatureMin: -5,
+      temperatureMax: 2,
+      powerType: PowerType.HYBRID,
+    },
+    {
+      name: 'Cold Room 3A',
+      siteId: site3.id,
+      totalCapacityKg: 4000,
+      temperatureMin: 0,
+      temperatureMax: 8,
+      powerType: PowerType.OFF_GRID,
+    },
   ];
 
   const coldRooms = [];
@@ -241,9 +265,27 @@ async function main() {
   // 7. Create Cold Boxes
   console.log('📦 Creating Cold Boxes...');
   const coldBoxesData = [
-    { identificationNumber: 'CB-KGL-001', sizeOrCapacity: '50L', siteId: site1.id, location: 'Warehouse A', status: AssetStatus.AVAILABLE },
-    { identificationNumber: 'CB-KGL-002', sizeOrCapacity: '100L', siteId: site1.id, location: 'Warehouse A', status: AssetStatus.AVAILABLE },
-    { identificationNumber: 'CB-MUS-001', sizeOrCapacity: '75L', siteId: site2.id, location: 'Storage Room B', status: AssetStatus.AVAILABLE },
+    {
+      identificationNumber: 'CB-KGL-001',
+      sizeOrCapacity: '50L',
+      siteId: site1.id,
+      location: 'Warehouse A',
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      identificationNumber: 'CB-KGL-002',
+      sizeOrCapacity: '100L',
+      siteId: site1.id,
+      location: 'Warehouse A',
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      identificationNumber: 'CB-MUS-001',
+      sizeOrCapacity: '75L',
+      siteId: site2.id,
+      location: 'Storage Room B',
+      status: AssetStatus.AVAILABLE,
+    },
   ];
 
   for (const data of coldBoxesData) {
@@ -257,9 +299,24 @@ async function main() {
   // 8. Create Cold Plates
   console.log('🧊 Creating Cold Plates...');
   const coldPlatesData = [
-    { identificationNumber: 'CP-KGL-001', coolingSpecification: '-10°C for 8 hours', siteId: site1.id, status: AssetStatus.AVAILABLE },
-    { identificationNumber: 'CP-KGL-002', coolingSpecification: '-5°C for 6 hours', siteId: site1.id, status: AssetStatus.AVAILABLE },
-    { identificationNumber: 'CP-MUS-001', coolingSpecification: '-8°C for 10 hours', siteId: site2.id, status: AssetStatus.AVAILABLE },
+    {
+      identificationNumber: 'CP-KGL-001',
+      coolingSpecification: '-10°C for 8 hours',
+      siteId: site1.id,
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      identificationNumber: 'CP-KGL-002',
+      coolingSpecification: '-5°C for 6 hours',
+      siteId: site1.id,
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      identificationNumber: 'CP-MUS-001',
+      coolingSpecification: '-8°C for 10 hours',
+      siteId: site2.id,
+      status: AssetStatus.AVAILABLE,
+    },
   ];
 
   for (const data of coldPlatesData) {
@@ -273,9 +330,27 @@ async function main() {
   // 9. Create Tricycles
   console.log('🚲 Creating Tricycles...');
   const tricyclesData = [
-    { plateNumber: 'TC-KGL-001', siteId: site1.id, capacity: '200kg', category: TricycleCategory.DAIRY, status: AssetStatus.AVAILABLE },
-    { plateNumber: 'TC-MUS-001', siteId: site2.id, capacity: '150kg', category: TricycleCategory.FRUITS_VEGETABLES, status: AssetStatus.AVAILABLE },
-    { plateNumber: 'TC-RUB-001', siteId: site3.id, capacity: '180kg', category: TricycleCategory.MEAT, status: AssetStatus.AVAILABLE },
+    {
+      plateNumber: 'TC-KGL-001',
+      siteId: site1.id,
+      capacity: '200kg',
+      category: TricycleCategory.DAIRY,
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      plateNumber: 'TC-MUS-001',
+      siteId: site2.id,
+      capacity: '150kg',
+      category: TricycleCategory.FRUITS_VEGETABLES,
+      status: AssetStatus.AVAILABLE,
+    },
+    {
+      plateNumber: 'TC-RUB-001',
+      siteId: site3.id,
+      capacity: '180kg',
+      category: TricycleCategory.MEAT,
+      status: AssetStatus.AVAILABLE,
+    },
   ];
 
   for (const data of tricyclesData) {
@@ -289,14 +364,56 @@ async function main() {
   // 10. Create Products
   console.log('🥛 Creating Products...');
   const productsData = [
-    { name: 'Fresh Milk', category: 'Dairy', quantityKg: 500, unit: 'Liters', supplierId: supplier1.id, coldRoomId: coldRoom1.id, sellingPricePerUnit: 1000, siteId: site1.id, status: ProductStatus.IN_STOCK },
-    { name: 'Cheese', category: 'Dairy', quantityKg: 100, unit: 'Kg', supplierId: supplier1.id, coldRoomId: coldRoom1.id, sellingPricePerUnit: 5000, siteId: site1.id, status: ProductStatus.IN_STOCK },
-    { name: 'Tomatoes', category: 'Vegetables', quantityKg: 300, unit: 'Kg', supplierId: supplier2.id, coldRoomId: coldRoom2.id, sellingPricePerUnit: 800, siteId: site2.id, status: ProductStatus.IN_STOCK },
-    { name: 'Beef', category: 'Meat', quantityKg: 200, unit: 'Kg', supplierId: supplier2.id, coldRoomId: coldRoom2.id, sellingPricePerUnit: 4500, siteId: site2.id, status: ProductStatus.IN_STOCK },
+    {
+      name: 'Fresh Milk',
+      category: 'Dairy',
+      quantityKg: 500,
+      unit: 'Liters',
+      supplierId: supplier1.id,
+      coldRoomId: coldRoom1.id,
+      sellingPricePerUnit: 1000,
+      siteId: site1.id,
+      status: ProductStatus.IN_STOCK,
+    },
+    {
+      name: 'Cheese',
+      category: 'Dairy',
+      quantityKg: 100,
+      unit: 'Kg',
+      supplierId: supplier1.id,
+      coldRoomId: coldRoom1.id,
+      sellingPricePerUnit: 5000,
+      siteId: site1.id,
+      status: ProductStatus.IN_STOCK,
+    },
+    {
+      name: 'Tomatoes',
+      category: 'Vegetables',
+      quantityKg: 300,
+      unit: 'Kg',
+      supplierId: supplier2.id,
+      coldRoomId: coldRoom2.id,
+      sellingPricePerUnit: 800,
+      siteId: site2.id,
+      status: ProductStatus.IN_STOCK,
+    },
+    {
+      name: 'Beef',
+      category: 'Meat',
+      quantityKg: 200,
+      unit: 'Kg',
+      supplierId: supplier2.id,
+      coldRoomId: coldRoom2.id,
+      sellingPricePerUnit: 4500,
+      siteId: site2.id,
+      status: ProductStatus.IN_STOCK,
+    },
   ];
 
   for (const data of productsData) {
-    const existing = await prisma.product.findFirst({ where: { name: data.name, siteId: data.siteId } });
+    const existing = await prisma.product.findFirst({
+      where: { name: data.name, siteId: data.siteId },
+    });
     if (!existing) {
       await prisma.product.create({ data });
     }
