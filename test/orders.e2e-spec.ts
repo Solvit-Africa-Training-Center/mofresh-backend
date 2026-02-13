@@ -161,7 +161,10 @@ describe('Orders (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/orders')
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .send(createOrderDto)
         .expect(201);
 
@@ -187,7 +190,10 @@ describe('Orders (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/orders')
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .send(createOrderDto)
         .expect(400);
     });
@@ -205,7 +211,10 @@ describe('Orders (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/orders')
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .send(createOrderDto)
         .expect(400);
     });
@@ -222,7 +231,10 @@ describe('Orders (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/orders')
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .send(createOrderDto)
         .expect(400);
     });
@@ -232,7 +244,10 @@ describe('Orders (e2e)', () => {
     it('should get all orders', async () => {
       const response = await request(app.getHttpServer())
         .get('/orders')
-        .set('x-mock-user', JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }),
+        )
         .expect(200);
 
       expect(Array.isArray(response.body.data)).toBe(true);
@@ -245,7 +260,10 @@ describe('Orders (e2e)', () => {
     it('should get order by ID', async () => {
       const response = await request(app.getHttpServer())
         .get(`/orders/${testOrderId}`)
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .expect(200);
 
       expect(response.body.id).toBe(testOrderId);
@@ -256,7 +274,10 @@ describe('Orders (e2e)', () => {
     it('should return 404 for non-existent order', async () => {
       await request(app.getHttpServer())
         .get('/orders/00000000-0000-0000-0000-000000000000')
-        .set('x-mock-user', JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testClientId, siteId: testSiteId, role: 'CLIENT' }),
+        )
         .expect(404);
     });
   });
@@ -272,7 +293,10 @@ describe('Orders (e2e)', () => {
       // Approve the order
       const response = await request(app.getHttpServer())
         .patch(`/orders/${testOrderId}/approve`)
-        .set('x-mock-user', JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }),
+        )
         .expect(200);
 
       expect(response.body.status).toBe('APPROVED');
@@ -308,7 +332,10 @@ describe('Orders (e2e)', () => {
     it('should fail to approve already approved order', async () => {
       await request(app.getHttpServer())
         .patch(`/orders/${testOrderId}/approve`)
-        .set('x-mock-user', JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }),
+        )
         .expect(400);
     });
   });
@@ -347,7 +374,10 @@ describe('Orders (e2e)', () => {
 
       const response = await request(app.getHttpServer())
         .patch(`/orders/${rejectOrderId}/reject`)
-        .set('x-mock-user', JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }),
+        )
         .send(rejectDto)
         .expect(200);
 
@@ -370,7 +400,10 @@ describe('Orders (e2e)', () => {
 
       await request(app.getHttpServer())
         .patch(`/orders/${order.id}/reject`)
-        .set('x-mock-user', JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }))
+        .set(
+          'x-mock-user',
+          JSON.stringify({ userId: testManagerId, siteId: testSiteId, role: 'SITE_MANAGER' }),
+        )
         .send({})
         .expect(400);
     });
