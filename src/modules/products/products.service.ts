@@ -9,12 +9,17 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { ProductEntity } from './entities/product.entity';
-import { ProductStatus, StockMovementType, UserRole } from '@prisma/client';
+import { ProductStatus, StockMovementType, UserRole, AuditAction, Prisma } from '@prisma/client';
 import { CurrentUserPayload } from '@/common/decorators/current-user.decorator';
 import { isUUID } from 'class-validator';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditLogsService,
+  ) {}
 
   async create(dto: CreateProductDto, user: CurrentUserPayload): Promise<ProductEntity> {
     if (user.role === UserRole.SITE_MANAGER) {
@@ -26,7 +31,7 @@ export class ProductsService {
 
       if (!room) throw new NotFoundException('Cold room not found');
 
-      // Ensuring the cold room actually belongs to the site assigned to the product
+      // ensuring the cold room actually belongs to the site assigned to the product
       if (room.siteId !== dto.siteId) {
         throw new BadRequestException('Selected cold room does not belong to the product site');
       }
@@ -55,6 +60,21 @@ export class ProductsService {
         data: { usedCapacityKg: { increment: dto.quantityKg } },
       });
 
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.CREATE,
+          entityType: 'Product',
+          entityId: product.id,
+          userId: user.userId,
+          details: {
+            productName: product.name,
+            siteId: product.siteId,
+            quantityKg: dto.quantityKg,
+          },
+          timestamp: new Date(),
+        },
+      });
+
       return new ProductEntity(product);
     });
   }
@@ -71,10 +91,9 @@ export class ProductsService {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.siteId = user.siteId;
     } else if (user.role === UserRole.SUPER_ADMIN && siteId) {
-      if (siteId)
-        if (!isUUID(siteId)) {
-          throw new BadRequestException(`Invalid siteId format: ${siteId}`);
-        }
+      if (!isUUID(siteId)) {
+        throw new BadRequestException(`Invalid siteId format: ${siteId}`);
+      }
       const siteExists = await this.prisma.site.findUnique({
         where: { id: siteId },
       });
@@ -122,7 +141,7 @@ export class ProductsService {
     id: string,
     dto: UpdateProductDto,
     user: CurrentUserPayload,
-  ): Promise<{ message: string; data: ProductEntity; product: ProductEntity }> {
+  ): Promise<ProductEntity> {
     const existingProduct = await this.findOne(id, user);
 
     if (user.role === UserRole.SITE_MANAGER && dto.siteId) {
@@ -155,13 +174,11 @@ export class ProductsService {
       },
     });
 
-    const productEntity = new ProductEntity(updated);
+    await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'Product', id, {
+      productName: updated.name,
+    } as Prisma.InputJsonValue);
 
-    return {
-      message: 'Product updated successfully',
-      data: productEntity,
-      product: productEntity,
-    };
+    return new ProductEntity(updated);
   }
 
   async adjustStock(
@@ -191,8 +208,15 @@ export class ProductsService {
       if (isIncrement) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const coldRoom = await tx.coldRoom.findUnique({ where: { id: product.coldRoomId } });
+
+        if (!coldRoom) {
+          throw new NotFoundException('Associated cold room not found');
+        }
+
         if (coldRoom.usedCapacityKg + dto.quantityKg > coldRoom.totalCapacityKg) {
-          throw new BadRequestException('Storage capacity exceeded in the cold room');
+          throw new BadRequestException(
+            `Storage capacity exceeded. Available: ${coldRoom.totalCapacityKg - coldRoom.usedCapacityKg}kg, Requested: ${dto.quantityKg}kg`,
+          );
         }
       }
 
@@ -220,6 +244,23 @@ export class ProductsService {
           movementType: dto.movementType,
           reason: dto.reason,
           createdBy: user.userId,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.UPDATE,
+          entityType: 'StockMovement',
+          entityId: id,
+          userId: user.userId,
+          details: {
+            movementType: dto.movementType,
+            quantityKg: dto.quantityKg,
+            reason: dto.reason,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            newQuantity,
+          },
+          timestamp: new Date(),
         },
       });
 
@@ -253,6 +294,17 @@ export class ProductsService {
       await tx.coldRoom.update({
         where: { id: product.coldRoomId },
         data: { usedCapacityKg: { decrement: product.quantityKg } },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          action: AuditAction.DELETE,
+          entityType: 'Product',
+          entityId: id,
+          userId: user.userId,
+          details: { productName: product.name, quantityKg: product.quantityKg },
+          timestamp: new Date(),
+        },
       });
     });
 

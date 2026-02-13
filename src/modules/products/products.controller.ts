@@ -10,7 +10,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -65,6 +65,14 @@ export class ProductsController {
 
   @Patch(':id/adjust-stock')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({
+    summary: 'Adjust product stock levels (IN/OUT movements)',
+    description:
+      'Records a stock movement and updates product quantity atomically. Enforces cold room capacity constraints on IN movements.',
+  })
+  @ApiResponse({ status: 200, description: 'Stock adjusted successfully' })
+  @ApiResponse({ status: 400, description: 'Insufficient stock or capacity exceeded' })
+  @ApiResponse({ status: 404, description: 'Product not found' })
   async adjustStock(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AdjustStockDto,

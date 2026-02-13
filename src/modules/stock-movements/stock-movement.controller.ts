@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StockMovementsService } from './stock-movements.service';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
+import { StockMovementQueryDto } from './dto/stock-movement-query.dto';
 import { RolesGuard } from '@/common/guards';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { Roles, CurrentUser } from '@/common/decorators';
@@ -34,7 +35,10 @@ export class StockMovementsController {
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'View movement history (Audit Trail)' })
-  async getHistory(@Query() filters: any, @CurrentUser() user: CurrentUserPayload) {
+  async getHistory(
+    @Query() filters: StockMovementQueryDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
     return this.service.findAll(filters, user);
   }
 
