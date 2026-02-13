@@ -32,6 +32,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^3.0.1",
+    "@nestjs/cli": "^11.0.16",
     "@nestjs/common": "^11.1.12",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.1.12",
@@ -53,15 +55,15 @@
     "nodemailer": "^7.0.13",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "uuid": "^9.0.1",
-    "rimraf": "^6.1.2",
-    "@nestjs/cli": "^11.0.16",
     "prisma": "^6.19.2",
+    "reflect-metadata": "^0.2.2",
+    "resend": "^6.9.2",
+    "rimraf": "^6.1.2",
+    "rxjs": "^7.8.2",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
-    "tsconfig-paths": "^4.2.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@nestjs/schematics": "^11.0.9",
