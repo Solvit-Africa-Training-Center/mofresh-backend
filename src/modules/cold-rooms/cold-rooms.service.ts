@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   NotFoundException,
@@ -7,16 +5,20 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from './../../database/prisma.service';
-import { UserRole } from '@prisma/client';
+import { UserRole, AuditAction } from '@prisma/client';
 import { ColdRoomStatusDto } from './dto/cold-room-status.dto';
 import { CreateColdRoomDto } from './dto/create-cold-room.dto';
 import { UpdateColdRoomDto } from './dto/update-cold-room.dto';
 import { ColdRoomEntity } from './entities/cold-room.entity';
 import { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
 @Injectable()
 export class ColdRoomService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditService: AuditLogsService,
+  ) {}
 
   async create(dto: CreateColdRoomDto, user: CurrentUserPayload) {
     if (user.role === UserRole.SITE_MANAGER) {
@@ -46,11 +48,18 @@ export class ColdRoomService {
     const room = await this.prisma.coldRoom.create({
       data: dto,
     });
+
+    await this.auditService.createAuditLog(user.userId, AuditAction.CREATE, 'ColdRoom', room.id, {
+      coldRoomName: room.name,
+      siteId: dto.siteId,
+      capacityKg: dto.totalCapacityKg,
+    });
+
     return new ColdRoomEntity(room);
   }
 
   //
-  async findAll(user: any, siteId?: string): Promise<ColdRoomEntity[]> {
+  async findAll(user: CurrentUserPayload, siteId?: string): Promise<ColdRoomEntity[]> {
     const where: any = { deletedAt: null };
     if (user.role === UserRole.SITE_MANAGER) {
       if (siteId && siteId !== user.siteId) {
@@ -58,19 +67,22 @@ export class ColdRoomService {
           `Unauthorized access: You are only allowed to view rooms for site ${user.siteId}`,
         );
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.siteId = user.siteId;
     } else if (siteId) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.siteId = siteId;
     }
 
     const rooms = await this.prisma.coldRoom.findMany({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       where,
       orderBy: { createdAt: 'desc' },
     });
     return rooms.map((room) => new ColdRoomEntity(room));
   }
 
-  async findOne(id: string, user: any): Promise<ColdRoomEntity> {
+  async findOne(id: string, user: CurrentUserPayload): Promise<ColdRoomEntity> {
     const room = await this.prisma.coldRoom.findUnique({
       where: { id, deletedAt: null },
     });
@@ -84,7 +96,7 @@ export class ColdRoomService {
     return new ColdRoomEntity(room);
   }
 
-  async getOccupancyDetails(id: string, user: any): Promise<ColdRoomStatusDto> {
+  async getOccupancyDetails(id: string, user: CurrentUserPayload): Promise<ColdRoomStatusDto> {
     const room = await this.findOne(id, user);
 
     return {
@@ -96,7 +108,11 @@ export class ColdRoomService {
     };
   }
 
-  async update(id: string, dto: UpdateColdRoomDto, user: any): Promise<ColdRoomEntity> {
+  async update(
+    id: string,
+    dto: UpdateColdRoomDto,
+    user: CurrentUserPayload,
+  ): Promise<ColdRoomEntity> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const room = await this.findOne(id, user);
 
@@ -108,6 +124,11 @@ export class ColdRoomService {
       where: { id },
       data: dto,
     });
+
+    await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'ColdRoom', id, {
+      coldRoomName: updated.name,
+    });
+
     return new ColdRoomEntity(updated);
   }
 

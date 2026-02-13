@@ -26,10 +26,7 @@ describe('ProductsController', () => {
     create: jest.fn().mockResolvedValue(mockProductResponse),
     findAll: jest.fn().mockResolvedValue([mockProductResponse]),
     findOne: jest.fn().mockResolvedValue(mockProductResponse),
-    update: jest.fn().mockResolvedValue({
-      message: 'Product updated successfully',
-      data: mockProductResponse,
-    }),
+    update: jest.fn().mockResolvedValue(mockProductResponse),
     adjustStock: jest.fn().mockResolvedValue(mockProductResponse),
     remove: jest.fn().mockResolvedValue({
       message: 'Product deleted successfully',
