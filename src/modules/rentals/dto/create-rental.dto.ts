@@ -1,75 +1,75 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AssetType, RentalStatus } from '@prisma/client';
 import {
-    IsDateString,
-    IsEnum,
-    IsNotEmpty,
-    IsNumber,
-    IsOptional,
-    IsUUID,
-    Min,
+  IsDateString,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  Min,
 } from 'class-validator';
 
 export class CreateRentalDto {
-    @ApiProperty({
-        description: 'Type of asset to rent',
-        enum: AssetType,
-        example: 'COLD_BOX',
-    })
-    @IsEnum(AssetType)
-    @IsNotEmpty()
-    assetType: AssetType;
+  @ApiProperty({
+    description: 'Type of asset to rent',
+    enum: AssetType,
+    example: 'COLD_BOX',
+  })
+  @IsEnum(AssetType)
+  @IsNotEmpty()
+  assetType: AssetType;
 
-    @ApiProperty({
-        description: 'ID of the Cold Box (if applicable)',
-        required: false,
-        example: '123e4567-e89b-12d3-a456-426614174000',
-    })
-    @IsOptional()
-    @IsUUID()
-    coldBoxId?: string;
+  @ApiProperty({
+    description: 'ID of the Cold Box (if applicable)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  coldBoxId?: string;
 
-    @ApiProperty({
-        description: 'ID of the Cold Plate (if applicable)',
-        required: false,
-        example: '123e4567-e89b-12d3-a456-426614174000',
-    })
-    @IsOptional()
-    @IsUUID()
-    coldPlateId?: string;
+  @ApiProperty({
+    description: 'ID of the Cold Plate (if applicable)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  coldPlateId?: string;
 
-    @ApiProperty({
-        description: 'ID of the Tricycle (if applicable)',
-        required: false,
-        example: '123e4567-e89b-12d3-a456-426614174000',
-    })
-    @IsOptional()
-    @IsUUID()
-    tricycleId?: string;
+  @ApiProperty({
+    description: 'ID of the Tricycle (if applicable)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  tricycleId?: string;
 
-    @ApiProperty({
-        description: 'Start date of the rental',
-        example: '2023-10-27T10:00:00Z',
-    })
-    @IsDateString()
-    @IsNotEmpty()
-    rentalStartDate: string;
+  @ApiProperty({
+    description: 'Start date of the rental',
+    example: '2023-10-27T10:00:00Z',
+  })
+  @IsDateString()
+  @IsNotEmpty()
+  rentalStartDate: string;
 
-    @ApiProperty({
-        description: 'End date of the rental',
-        example: '2023-10-28T10:00:00Z',
-    })
-    @IsDateString()
-    @IsNotEmpty()
-    rentalEndDate: string;
+  @ApiProperty({
+    description: 'End date of the rental',
+    example: '2023-10-28T10:00:00Z',
+  })
+  @IsDateString()
+  @IsNotEmpty()
+  rentalEndDate: string;
 
-    @ApiProperty({
-        description: 'Estimated fee for the rental',
-        example: 50.0,
-        minimum: 0,
-    })
-    @IsNumber()
-    @Min(0)
-    @IsNotEmpty()
-    estimatedFee: number;
+  @ApiProperty({
+    description: 'Estimated fee for the rental',
+    example: 50.0,
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0)
+  @IsNotEmpty()
+  estimatedFee: number;
 }

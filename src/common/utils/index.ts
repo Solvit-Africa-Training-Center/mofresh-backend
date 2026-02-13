@@ -1,2 +1,2 @@
 export * from './hashing.util';
-export * from './paginator';
+export * from './password-generator.util';

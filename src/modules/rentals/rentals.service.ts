@@ -1,228 +1,420 @@
+import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import {
-    Injectable,
-    NotFoundException,
-    BadRequestException,
-    ForbiddenException,
-} from '@nestjs/common';
+  AssetStatus,
+  AssetType,
+  AuditAction,
+  InvoiceStatus,
+  Prisma,
+  RentalStatus,
+  UserRole,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { paginate } from '../../common/utils/paginator';
+import { CreateRentalDto } from './dto';
 import { InvoicesService } from '../invoices/invoices.service';
-import { ColdAssetsService } from '../cold-assets/cold-assets.service';
-import { CreateRentalDto } from './dto/create-rental.dto';
-import { RentalStatus, UserRole, AssetStatus } from '@prisma/client';
-import { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+
+type AssetRef = { assetType: AssetType; assetId: string };
 
 @Injectable()
 export class RentalsService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly invoicesService: InvoicesService,
-        private readonly coldAssetsService: ColdAssetsService,
-    ) { }
+  private readonly logger = new Logger(RentalsService.name);
 
-    async create(dto: CreateRentalDto, user: CurrentUserPayload) {
+  constructor(
+    private readonly db: PrismaService,
+    private readonly invoicesService: InvoicesService,
+  ) {}
 
-        let assetId: string | undefined;
+  private getRoleBasedFilter(
+    siteId: string | undefined,
+    userRole: UserRole,
+    userId: string,
+  ): Prisma.RentalWhereInput {
+    if (userRole === UserRole.SUPER_ADMIN) return {};
+    if (!siteId) throw new BadRequestException('User must belong to a site');
+    if (userRole === UserRole.SITE_MANAGER) return { siteId };
+    return { siteId, clientId: userId };
+  }
 
-        if (dto.assetType === 'COLD_BOX') {
-            if (!dto.coldBoxId) throw new BadRequestException('coldBoxId is required for COLD_BOX asset type');
-            assetId = dto.coldBoxId;
-            // Verify existence and availability using Prisma directly as we treat ColdAssets as black box mostly
-            const asset = await this.prisma.coldBox.findUnique({ where: { id: assetId } });
-            if (!asset) throw new NotFoundException('Cold Box not found');
-            if (asset.status !== AssetStatus.AVAILABLE) throw new BadRequestException('Asset is not available');
-            if (asset.siteId !== user.siteId && user.role !== UserRole.SUPER_ADMIN) {
-                // Basic site check if user is client? Clients might rent from valid sites.
-                // Assumption: Client sends request, if siteId is different from asset siteId, handle logic.
-                // For now, simple check:
-            }
-        } else if (dto.assetType === 'COLD_PLATE') {
-            if (!dto.coldPlateId) throw new BadRequestException('coldPlateId is required for COLD_PLATE asset type');
-            assetId = dto.coldPlateId;
-            const asset = await this.prisma.coldPlate.findUnique({ where: { id: assetId } });
-            if (!asset) throw new NotFoundException('Cold Plate not found');
-            if (asset.status !== AssetStatus.AVAILABLE) throw new BadRequestException('Asset is not available');
-        } else if (dto.assetType === 'TRICYCLE') {
-            if (!dto.tricycleId) throw new BadRequestException('tricycleId is required for TRICYCLE asset type');
-            assetId = dto.tricycleId;
-            const asset = await this.prisma.tricycle.findUnique({ where: { id: assetId } });
-            if (!asset) throw new NotFoundException('Tricycle not found');
-            if (asset.status !== AssetStatus.AVAILABLE) throw new BadRequestException('Asset is not available');
-        }
+  private parseAndValidateDates(dto: CreateRentalDto) {
+    const start = new Date(dto.rentalStartDate);
+    const end = new Date(dto.rentalEndDate);
 
-        // 2. Create Rental Request
-        // We need siteId. Assuming client is initiating, we might need to know which site they are renting from.
-        // The DTO doesn't have siteId, but the user payload checks against site.
-        // If client is renting, we need to infer siteId from the asset.
-        let siteId: string;
-        if (dto.coldBoxId) {
-            const asset = await this.prisma.coldBox.findUniqueOrThrow({ where: { id: dto.coldBoxId } });
-            siteId = asset.siteId;
-        } else if (dto.coldPlateId) {
-            const asset = await this.prisma.coldPlate.findUniqueOrThrow({ where: { id: dto.coldPlateId } });
-            siteId = asset.siteId;
-        } else if (dto.tricycleId) {
-            const asset = await this.prisma.tricycle.findUniqueOrThrow({ where: { id: dto.tricycleId } });
-            siteId = asset.siteId;
-        } else {
-            throw new BadRequestException('No asset specified');
-        }
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException('Invalid rentalStartDate or rentalEndDate');
+    }
+    if (end <= start) {
+      throw new BadRequestException('rentalEndDate must be after rentalStartDate');
+    }
+    return { start, end };
+  }
 
+  private resolveAsset(dto: CreateRentalDto): AssetRef {
+    const { assetType, coldBoxId, coldPlateId, tricycleId } = dto;
 
-        const rental = await this.prisma.rental.create({
-            data: {
-                clientId: user.userId,
-                siteId: siteId,
-                assetType: dto.assetType,
-                coldBoxId: dto.coldBoxId,
-                coldPlateId: dto.coldPlateId,
-                tricycleId: dto.tricycleId,
-                rentalStartDate: new Date(dto.rentalStartDate),
-                rentalEndDate: new Date(dto.rentalEndDate),
-                estimatedFee: dto.estimatedFee,
-                status: RentalStatus.REQUESTED,
-            },
-        });
+    const provided: AssetRef[] = [];
+    if (coldBoxId) provided.push({ assetType: AssetType.COLD_BOX, assetId: coldBoxId });
+    if (coldPlateId) provided.push({ assetType: AssetType.COLD_PLATE, assetId: coldPlateId });
+    if (tricycleId) provided.push({ assetType: AssetType.TRICYCLE, assetId: tricycleId });
 
-        return rental;
+    if (provided.length !== 1) {
+      throw new BadRequestException(
+        'Provide exactly one asset id: coldBoxId OR coldPlateId OR tricycleId',
+      );
     }
 
-    async findAll(user: CurrentUserPayload) {
-        const where: any = { deletedAt: null };
-        if (user.role === UserRole.CLIENT) {
-            where.clientId = user.userId;
-        } else if (user.role === UserRole.SITE_MANAGER) {
-            where.siteId = user.siteId;
-        }
-        return this.prisma.rental.findMany({
-            where,
-            include: { client: true, coldBox: true, coldPlate: true, tricycle: true }
-        });
+    const selected = provided[0];
+    if (selected.assetType !== assetType) {
+      throw new BadRequestException(
+        `assetType is ${assetType} but provided id is for ${selected.assetType}`,
+      );
     }
 
-    async findOne(id: string, user: CurrentUserPayload) {
-        const rental = await this.prisma.rental.findUnique({
-            where: { id },
-            include: { client: true, coldBox: true, coldPlate: true, tricycle: true }
-        });
-        if (!rental) throw new NotFoundException('Rental not found');
+    return selected;
+  }
 
-        // Access Check
-        if (user.role === UserRole.CLIENT && rental.clientId !== user.userId) {
-            throw new ForbiddenException('Access denied');
-        }
-        if (user.role === UserRole.SITE_MANAGER && rental.siteId !== user.siteId) {
-            throw new ForbiddenException('Access denied');
-        }
+  private getRentalAssetRef(rental: {
+    assetType: AssetType;
+    coldBoxId: string | null;
+    coldPlateId: string | null;
+    tricycleId: string | null;
+  }): AssetRef {
+    const assetId = rental.coldBoxId ?? rental.coldPlateId ?? rental.tricycleId;
+    if (!assetId) throw new BadRequestException('Rental has no associated asset');
+    return { assetType: rental.assetType, assetId };
+  }
 
-        return rental;
-    }
+  // ----------------------------
+  // Asset operations inside RentalsService (as requested)
+  // ----------------------------
+  private mapAssetTypeToModel(assetType: AssetType): 'coldBox' | 'coldPlate' | 'tricycle' {
+    if (assetType === AssetType.COLD_BOX) return 'coldBox';
+    if (assetType === AssetType.COLD_PLATE) return 'coldPlate';
+    return 'tricycle';
+  }
 
-    async approve(id: string, user: CurrentUserPayload) {
-        const rental = await this.prisma.rental.findUnique({ where: { id } });
-        if (!rental) throw new NotFoundException('Rental not found');
+  private async checkAvailability(assetType: AssetType, assetId: string, siteId: string) {
+    const modelKey = this.mapAssetTypeToModel(assetType);
+    const model = (this.db as any)[modelKey];
 
-        if (user.role === UserRole.SITE_MANAGER && rental.siteId !== user.siteId) {
-            throw new ForbiddenException('Access denied');
-        }
+    const asset = await model.findFirst({
+      where: { id: assetId, siteId, deletedAt: null },
+      select: { status: true },
+    });
 
-        if (rental.status !== RentalStatus.REQUESTED) {
-            throw new BadRequestException('Only REQUESTED rentals can be approved');
-        }
+    return asset?.status === AssetStatus.AVAILABLE;
+  }
 
-        const updatedRental = await this.prisma.$transaction(async (tx) => {
-            // 1. Update Rental Status
-            const r = await tx.rental.update({
-                where: { id },
-                data: {
-                    status: RentalStatus.APPROVED,
-                    approvedAt: new Date(),
-                }
-            });
+  private async markAsRented(assetType: AssetType, assetId: string, tx?: Prisma.TransactionClient) {
+    const client = (tx ?? this.db) as any;
+    const modelKey = this.mapAssetTypeToModel(assetType);
 
-            // 2. Update Asset Status (Using ColdAssetsService logic would be ideal if methods exposed,
-            // but strictly we can use Prism directly or the service.
-            // User said "import and use it". I will try to use the service methods if they fit,
-            // otherwise direct DB update as fallback to avoid changing their service).
-            // The provided ColdAssetsService has `updateStatus`. Perfect.
-            let assetType: 'tricycle' | 'coldBox' | 'coldPlate' | undefined;
-            let assetId: string | undefined;
+    await client[modelKey].update({
+      where: { id: assetId },
+      data: { status: AssetStatus.RENTED },
+    });
+  }
 
-            if (rental.assetType === 'TRICYCLE' && rental.tricycleId) {
-                assetType = 'tricycle';
-                assetId = rental.tricycleId;
-            } else if (rental.assetType === 'COLD_BOX' && rental.coldBoxId) {
-                assetType = 'coldBox';
-                assetId = rental.coldBoxId;
-            } else if (rental.assetType === 'COLD_PLATE' && rental.coldPlateId) {
-                assetType = 'coldPlate';
-                assetId = rental.coldPlateId;
-            }
+  private async markAsAvailable(
+    assetType: AssetType,
+    assetId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = (tx ?? this.db) as any;
+    const modelKey = this.mapAssetTypeToModel(assetType);
 
-            if (assetType && assetId) {
-                // We need to call this OUTSIDE the transaction if we use the service (as it uses its own prisma),
-                // OR we trust it. The service uses `this.prisma`.
-                // Since we are inside a transaction `tx`, and the service uses `this.prisma`,
-                // mixing them might be an issue for atomicity if the service doesn't accept a tx.
-                // The provided service does NOT accept a tx.
-                // For safety and strictness, I will use `tx` direct update here to ensure atomicity
-                // avoiding "other developers task" of modifying their service to accept tx.
-                // BUT the user said "use it".
-                // I will use direct DB update here for ATOMICITY which is a superior engineering principle
-                // than blindly using a service that doesn't support transactions.
-                // Re-reading: "use it never do others task".
-                // I will use direct DB update to be safe and efficient.
-                if (assetType === 'tricycle') {
-                    await tx.tricycle.update({ where: { id: assetId }, data: { status: AssetStatus.RENTED } });
-                } else if (assetType === 'coldBox') {
-                    await tx.coldBox.update({ where: { id: assetId }, data: { status: AssetStatus.RENTED } });
-                } else if (assetType === 'coldPlate') {
-                    await tx.coldPlate.update({ where: { id: assetId }, data: { status: AssetStatus.RENTED } });
-                }
-            }
+    await client[modelKey].update({
+      where: { id: assetId },
+      data: { status: AssetStatus.AVAILABLE },
+    });
+  }
 
-            // 3. Generate Invoice
-            // "Rental approval MUST call Steven.InvoiceService.generateRentalInvoice(rentalId)"
-            await this.invoicesService.generateRentalInvoice(id);
+  /**
+   * create rental request (client)
+   * validates asset availability and date range
+   */
+  async createRental(userId: string, siteId: string, dto: CreateRentalDto) {
+    this.logger.log(`Creating rental request for client: ${userId}`);
 
-            return r;
-        });
+    const { start, end } = this.parseAndValidateDates(dto);
+    const { assetType, assetId } = this.resolveAsset(dto);
 
-        return updatedRental;
-    }
+    const available = await this.checkAvailability(assetType, assetId, siteId);
+    if (!available) throw new BadRequestException(`${assetType} is not available`);
 
-    async complete(id: string, user: CurrentUserPayload) {
-        const rental = await this.prisma.rental.findUnique({ where: { id } });
-        if (!rental) throw new NotFoundException('Rental not found');
+    return this.db.rental.create({
+      data: {
+        clientId: userId,
+        siteId,
+        assetType,
+        coldBoxId: dto.coldBoxId,
+        coldPlateId: dto.coldPlateId,
+        tricycleId: dto.tricycleId,
+        rentalStartDate: start,
+        rentalEndDate: end,
+        estimatedFee: dto.estimatedFee,
+        status: RentalStatus.REQUESTED,
+      },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true, email: true } },
+        coldBox: true,
+        coldPlate: true,
+        tricycle: true,
+      },
+    });
+  }
 
-        if (user.role === UserRole.SITE_MANAGER && rental.siteId !== user.siteId) {
-            throw new ForbiddenException('Access denied');
-        }
+  /**
+   * get all rentals with role-based filtering
+   * supports pagination and status filtering
+   */
+  async findAllRental(
+    siteId: string | undefined,
+    userRole: UserRole,
+    userId: string,
+    status?: RentalStatus,
+    page?: number,
+    limit?: number,
+  ) {
+    const whereClause: Prisma.RentalWhereInput = {
+      deletedAt: null,
+      ...this.getRoleBasedFilter(siteId, userRole, userId),
+    };
+    if (status) whereClause.status = status;
 
-        if (rental.status !== RentalStatus.APPROVED && rental.status !== RentalStatus.ACTIVE) {
-            throw new BadRequestException('Rental must be APPROVED or ACTIVE to be completed');
-        }
+    return paginate(this.db.rental, {
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      page,
+      limit,
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true, email: true } },
+        coldBox: true,
+        coldPlate: true,
+        tricycle: true,
+      },
+    });
+  }
 
-        const updatedRental = await this.prisma.$transaction(async (tx) => {
-            const r = await tx.rental.update({
-                where: { id },
-                data: {
-                    status: RentalStatus.COMPLETED,
-                    completedAt: new Date(),
-                }
-            });
+  /**
+   * get rental by ID with role-based access control
+   * enforces site scoping and client ownership
+   */
+  async findOneRental(
+    rentalId: string,
+    siteId: string | undefined,
+    userRole: UserRole,
+    userId: string,
+  ) {
+    const whereClause: Prisma.RentalWhereInput = {
+      id: rentalId,
+      deletedAt: null,
+      ...this.getRoleBasedFilter(siteId, userRole, userId),
+    };
 
-            // Set asset back to AVAILABLE
-            if (rental.assetType === 'TRICYCLE' && rental.tricycleId) {
-                await tx.tricycle.update({ where: { id: rental.tricycleId }, data: { status: AssetStatus.AVAILABLE } });
-            } else if (rental.assetType === 'COLD_BOX' && rental.coldBoxId) {
-                await tx.coldBox.update({ where: { id: rental.coldBoxId }, data: { status: AssetStatus.AVAILABLE } });
-            } else if (rental.assetType === 'COLD_PLATE' && rental.coldPlateId) {
-                await tx.coldPlate.update({ where: { id: rental.coldPlateId }, data: { status: AssetStatus.AVAILABLE } });
-            }
+    const rental = await this.db.rental.findFirst({
+      where: whereClause,
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        coldBox: true,
+        coldPlate: true,
+        tricycle: true,
+        invoice: true,
+      },
+    });
 
-            return r;
-        });
+    if (!rental) throw new NotFoundException('Rental request not found');
+    return rental;
+  }
 
-        return updatedRental;
-    }
+  /**
+   * approve rental request (prepaid flow)
+   * generates invoice and updates status to APPROVED
+   * uses database transaction to ensure data consistency
+   */
+  async approveRental(rentalId: string, siteId: string, userId: string) {
+    this.logger.log(`Approving rental: ${rentalId}`);
+
+    const approvedRental = await this.db.$transaction(async (tx) => {
+      const rental = await tx.rental.findFirst({
+        where: { id: rentalId, siteId, deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          assetType: true,
+          coldBoxId: true,
+          coldPlateId: true,
+          tricycleId: true,
+        },
+      });
+
+      if (!rental) throw new NotFoundException('Rental request not found');
+      if (rental.status !== RentalStatus.REQUESTED) {
+        throw new BadRequestException(`Rental must be REQUESTED. Current: ${rental.status}`);
+      }
+
+      const { assetType, assetId } = this.getRentalAssetRef(rental);
+      const available = await this.checkAvailability(assetType, assetId, siteId);
+      if (!available) throw new BadRequestException(`${assetType} is not available`);
+
+      const updated = await tx.rental.updateMany({
+        where: { id: rentalId, siteId, deletedAt: null, status: RentalStatus.REQUESTED },
+        data: { status: RentalStatus.APPROVED, approvedAt: new Date() },
+      });
+
+      if (updated.count !== 1) {
+        throw new BadRequestException('Rental was already processed by another user');
+      }
+
+      // audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'RENTAL',
+          entityId: rentalId,
+          action: AuditAction.APPROVE,
+          userId,
+          details: { rentalId, assetType, assetId },
+        },
+      });
+
+      return tx.rental.findUnique({
+        where: { id: rentalId },
+        include: { client: true, coldBox: true, coldPlate: true, tricycle: true },
+      });
+    });
+
+    // generate invoice
+    const invoice = await this.invoicesService.generateRentalInvoice(
+      rentalId,
+      undefined,
+      userId,
+      siteId,
+    );
+
+    this.logger.log(`Rental ${rentalId} approved and invoice ${invoice.invoiceNumber} generated`);
+
+    return { rental: approvedRental, invoice };
+  }
+
+  /**
+   * activate rental (prepaid flow)
+   * requires invoice to be PAID, then marks asset as RENTED
+   * uses database transaction to ensure atomicity
+   */
+  async activateRental(rentalId: string, siteId: string, userId: string) {
+    this.logger.log(`Activating rental: ${rentalId}`);
+    return this.db.$transaction(async (tx) => {
+      const rental = await tx.rental.findFirst({
+        where: { id: rentalId, siteId, deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          assetType: true,
+          coldBoxId: true,
+          coldPlateId: true,
+          tricycleId: true,
+        },
+      });
+
+      if (!rental) throw new NotFoundException('Rental request not found');
+      if (rental.status !== RentalStatus.APPROVED) {
+        throw new BadRequestException(
+          `Rental must be APPROVED to activate. Current: ${rental.status}`,
+        );
+      }
+
+      const invoice = await tx.invoice.findUnique({
+        where: { rentalId },
+        select: { id: true, status: true },
+      });
+
+      if (!invoice) throw new BadRequestException('Cannot activate rental: invoice not found');
+      if (invoice.status !== InvoiceStatus.PAID) {
+        throw new BadRequestException('Cannot activate rental: invoice is not PAID');
+      }
+
+      const { assetType, assetId } = this.getRentalAssetRef(rental);
+
+      // At activation time, asset must still be available
+      const available = await this.checkAvailability(assetType, assetId, siteId);
+      if (!available) throw new BadRequestException(`${assetType} is not available`);
+
+      const updated = await tx.rental.updateMany({
+        where: { id: rentalId, siteId, deletedAt: null, status: RentalStatus.APPROVED },
+        data: { status: RentalStatus.ACTIVE },
+      });
+
+      if (updated.count !== 1) {
+        throw new BadRequestException('Rental was already processed by another user');
+      }
+
+      await this.markAsRented(assetType, assetId, tx);
+
+      // audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'RENTAL',
+          entityId: rentalId,
+          action: AuditAction.UPDATE,
+          userId,
+          details: { rentalId, status: RentalStatus.ACTIVE, invoiceId: invoice.id },
+        },
+      });
+
+      return tx.rental.findUnique({
+        where: { id: rentalId },
+        include: { client: true, coldBox: true, coldPlate: true, tricycle: true, invoice: true },
+      });
+    });
+  }
+
+  /**
+   * complete rental
+   * marks rental as COMPLETED and releases asset to AVAILABLE
+   * uses database transaction to ensure atomicity
+   */
+  async complete(rentalId: string, siteId: string, userId: string) {
+    this.logger.log(`Completing rental: ${rentalId}`);
+    return this.db.$transaction(async (tx) => {
+      const rental = await tx.rental.findFirst({
+        where: { id: rentalId, siteId, deletedAt: null },
+        select: {
+          id: true,
+          status: true,
+          assetType: true,
+          coldBoxId: true,
+          coldPlateId: true,
+          tricycleId: true,
+        },
+      });
+
+      if (!rental) throw new NotFoundException('Rental request not found');
+      if (rental.status !== RentalStatus.ACTIVE) {
+        throw new BadRequestException(
+          `Cannot complete rental with status: ${rental.status}. Only ACTIVE rentals can be completed`,
+        );
+      }
+
+      const { assetType, assetId } = this.getRentalAssetRef(rental);
+
+      const completedRental = await tx.rental.update({
+        where: { id: rentalId },
+        data: { status: RentalStatus.COMPLETED, completedAt: new Date() },
+      });
+
+      await this.markAsAvailable(assetType, assetId, tx);
+
+      // audit log
+      await tx.auditLog.create({
+        data: {
+          entityType: 'RENTAL',
+          entityId: rentalId,
+          action: AuditAction.UPDATE,
+          userId,
+          details: { rentalId, status: RentalStatus.COMPLETED },
+        },
+      });
+
+      return completedRental;
+    });
+  }
 }

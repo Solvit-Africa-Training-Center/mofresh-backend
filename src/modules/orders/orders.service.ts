@@ -14,7 +14,7 @@ export class OrdersService {
     private readonly db: PrismaService,
     private readonly invoiceService: InvoicesService,
     // private readonly stockMovementService: StockMovementService,
-  ) { }
+  ) {}
 
   private getRoleBasedFilter(
     siteId: string,
