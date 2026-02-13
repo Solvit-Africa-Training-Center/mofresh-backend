@@ -282,6 +282,8 @@ model ColdBox {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
+  imageUrl             String?
+ 
 
   // Relations
   site                 Site         @relation(fields: [siteId], references: [id])
@@ -301,6 +303,8 @@ model ColdPlate {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
+  imageUrl             String?
+  
 
   // Relations
   site                 Site         @relation(fields: [siteId], references: [id])
@@ -321,6 +325,9 @@ model Tricycle {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
+  imageUrl    String?
+  
+
 
   // Relations
   site        Site             @relation(fields: [siteId], references: [id])
@@ -345,6 +352,8 @@ model Product {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
+  imageUrl            String?
+  description         String?
 
   // Relations
   supplier            User             @relation("SupplierProducts", fields: [supplierId], references: [id])
