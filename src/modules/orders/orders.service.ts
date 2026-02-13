@@ -6,14 +6,14 @@ import { paginate } from '../../common/utils/paginator';
 
 // import { StockMovementService } from '../stock-movements/stock-movements.service';
 
-// import { InvoicesService } from '../invoices/invoices.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly db: PrismaService,
     // private readonly stockMovementService: StockMovementService,
-    // private readonly invoiceService: InvoicesService,
+    private readonly invoiceService: InvoicesService,
   ) { }
 
 
@@ -169,7 +169,7 @@ export class OrdersService {
         },
       });
 
-      // await this.invoiceService.generateOrderInvoice(orderId);
+      await this.invoiceService.generateOrderInvoice(orderId);
 
       return updatedOrder;
     });
