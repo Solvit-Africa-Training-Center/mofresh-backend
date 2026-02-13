@@ -10,6 +10,7 @@ import { AppModule } from './../src/app.module';
 import { PrismaService } from '../src/database/prisma.service';
 import { AuditAction } from '@prisma/client';
 
+<<<<<<< HEAD
 // test credentials - only for e2e testing
 const TEST_CREDENTIALS = {
   CLIENT: {
@@ -22,6 +23,8 @@ const TEST_CREDENTIALS = {
   },
 };
 
+=======
+>>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
 describe('Auth & Audit Logs (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -53,7 +56,14 @@ describe('Auth & Audit Logs (e2e)', () => {
     it('should login as client (no OTP) and create an audit log', async () => {
       const loginResponse = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
+<<<<<<< HEAD
         .send(TEST_CREDENTIALS.CLIENT)
+=======
+        .send({
+          email: 'client1@example.rw',
+          password: 'Password123!',
+        })
+>>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
         .expect(201);
 
       expect(loginResponse.body).toHaveProperty('accessToken');
@@ -74,9 +84,16 @@ describe('Auth & Audit Logs (e2e)', () => {
     });
 
     it('should login as admin and create an audit log', async () => {
+<<<<<<< HEAD
       const loginResponse = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
         .send(TEST_CREDENTIALS.ADMIN);
+=======
+      const loginResponse = await request(app.getHttpServer()).post('/api/v1/auth/login').send({
+        email: 'admin@mofresh.rw',
+        password: 'Password123!',
+      });
+>>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
 
       console.log('Admin login response:', loginResponse.body);
       expect(loginResponse.status).toBe(201);
@@ -85,7 +102,11 @@ describe('Auth & Audit Logs (e2e)', () => {
         let otp = null;
         for (let i = 0; i < 5; i++) {
           otp = await prisma.otp.findFirst({
+<<<<<<< HEAD
             where: { email: TEST_CREDENTIALS.ADMIN.email },
+=======
+            where: { email: 'admin@mofresh.rw' },
+>>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
             orderBy: { createdAt: 'desc' },
           });
           if (otp) break;
@@ -97,7 +118,11 @@ describe('Auth & Audit Logs (e2e)', () => {
         const verifyResponse = await request(app.getHttpServer())
           .post('/api/v1/auth/verify-otp')
           .send({
+<<<<<<< HEAD
             email: TEST_CREDENTIALS.ADMIN.email,
+=======
+            email: 'admin@mofresh.rw',
+>>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
             code: otp?.code,
           });
 
