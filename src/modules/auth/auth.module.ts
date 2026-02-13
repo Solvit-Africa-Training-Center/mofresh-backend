@@ -7,7 +7,6 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OptionalJwtAuthGuard } from '../../common/guards/optional-jwt.guard';
-import { ResetEmailService } from '../mail/Resetmail.service';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 
 @Module({
@@ -31,13 +30,7 @@ import { AuditLogsModule } from '../audit-logs/audit-logs.module';
     MailModule,
     AuditLogsModule,
   ],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    JwtRefreshStrategy,
-    OptionalJwtAuthGuard,
-    ResetEmailService,
-  ],
+  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, OptionalJwtAuthGuard],
   controllers: [AuthController],
   exports: [AuthService, JwtStrategy, JwtModule],
 })

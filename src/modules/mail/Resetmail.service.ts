@@ -1,28 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { MAIL_TRANSPORTER } from './mail-transporter.provider';
 
 @Injectable()
 export class ResetEmailService {
-  private readonly transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(ResetEmailService.name);
+  private readonly emailEnabled: boolean = true;
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(MAIL_TRANSPORTER) private readonly transporter: nodemailer.Transporter,
+  ) {
+    const emailDisabled = this.configService.get<string>('DISABLE_EMAIL') === 'true';
+    if (emailDisabled) {
+      this.emailEnabled = false;
+      this.logger.warn('⚠️ Email service is DISABLED');
+    }
+  }
+
+  private getLogoPath(): string {
+    const paths = [
+      join(process.cwd(), 'dist/assets/images/MoFreshLogo.png'),
+      join(process.cwd(), 'src/assets/images/MoFreshLogo.png'),
+      join(process.cwd(), 'assets/images/MoFreshLogo.png'),
+    ];
+
+    for (const p of paths) {
+      if (existsSync(p)) return p;
+    }
+
+    return '';
   }
 
   async sendPasswordResetEmail(email: string, otpCode: string) {
-    const logoPath = join(process.cwd(), 'src/assets/images/MoFreshLogo.png');
+    if (!this.emailEnabled) {
+      this.logger.log(`📧 [SKIPPED] Would send password reset OTP ${otpCode} to: ${email}`);
+      return;
+    }
+
+    const logoPath = this.getLogoPath();
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
 
     const mailOptions = {
-      from: `"MoFresh Support" <${process.env.EMAIL_USER}>`,
+      from: `"MoFresh Support" <${adminEmail}>`,
       to: email,
       subject: 'Password Reset Request - MoFresh',
       html: `
@@ -43,9 +66,9 @@ export class ResetEmailService {
                   <tr>
                     <td style="background:linear-gradient(135deg,#2e7d32 0%,#1b5e20 50%,#ffa726 100%);padding:40px 40px 30px;text-align:center;">
                       <div style="width:80px;height:80px;background-color:rgba(255,255,255,0.2);border-radius:16px;margin:0 auto 16px;display:inline-flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,0.3);">
-                        <img src="cid:mofresh_logo" alt="MoFresh Logo" style="width:60px;height:60px;border-radius:8px;" />
+                        ${logoPath ? '<img src="cid:mofresh_logo" alt="MoFresh Logo" style="width:60px;height:60px;border-radius:8px;" />' : ''}
                       </div>
-                      <h1 style="color:#ffffff;font-size:26px;margin:0 0 6px;font-weight:700;letter-spacing:-0.5px;">Password Reset Request </h1>
+                      <h1 style="color:#ffffff;font-size:26px;margin:0 0 6px;font-weight:700;letter-spacing:-0.5px;">Password Reset Request</h1>
                       <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">Secure One-Time Password</p>
                     </td>
                   </tr>
@@ -74,37 +97,6 @@ export class ResetEmailService {
                           </td>
                         </tr>
                       </table>
-
-                      <!-- Security Warning -->
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:30px;">
-                        <tr>
-                          <td style="background-color:#ffebee;border-radius:10px;padding:20px;border-left:4px solid #f44336;">
-                            <p style="color:#c62828;font-size:14px;font-weight:700;margin:0 0 8px;"> Security Alert</p>
-                            <p style="color:#d32f2f;font-size:13px;line-height:1.8;margin:0;">
-                              If you didn't request a password reset, please ignore this email and ensure your account is secure. Consider changing your password if you suspect unauthorized access.
-                            </p>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <!-- Security Tips -->
-                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;">
-                        <tr>
-                          <td style="background-color:#f0f9f1;border-radius:10px;padding:20px;border-left:4px solid #2e7d32;">
-                            <p style="color:#1b5e20;font-size:14px;font-weight:700;margin:0 0 8px;"> Security Tips</p>
-                            <ul style="color:#2e7d32;font-size:13px;line-height:1.8;margin:0;padding-left:18px;">
-                              <li>Never share this OTP with anyone</li>
-                              <li>Our team will never ask for your OTP</li>
-                              <li>This code is valid for one use only</li>
-                              <li>Choose a strong, unique password</li>
-                            </ul>
-                          </td>
-                        </tr>
-                      </table>
-
-                      <p style="color:#64748b;font-size:14px;line-height:1.6;margin:28px 0 0;">
-                        For security reasons, never share this code with anyone, including MoFresh support staff.
-                      </p>
                     </td>
                   </tr>
 
@@ -112,49 +104,35 @@ export class ResetEmailService {
                   <tr>
                     <td style="background-color:#f8fafc;padding:30px 40px;text-align:center;border-top:1px solid #e2e8f0;">
                       <p style="margin:0 0 12px;color:#64748b;font-size:13px;line-height:1.6;">
-                        Need help? Contact us at 
-                        <a href="mailto:${process.env.COMPANY_EMAIL}" style="color:#2e7d32;text-decoration:none;font-weight:500;">${process.env.COMPANY_EMAIL}</a>
-                      </p>
-                      <p style="margin:0;color:#94a3b8;font-size:12px;">
                         © ${new Date().getFullYear()} MoFresh. All rights reserved.
                       </p>
                     </td>
                   </tr>
 
                 </table>
-
-                <!-- Email disclaimer -->
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;margin:20px auto 0;">
-                  <tr>
-                    <td style="text-align:center;padding:0 20px;">
-                      <p style="margin:0;color:#94a3b8;font-size:12px;line-height:1.5;">
-                        This is an automated message, please do not reply to this email.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-
               </td>
             </tr>
           </table>
         </body>
         </html>
       `,
-      attachments: [
-        {
-          filename: 'MoFreshLogo.png',
-          path: logoPath,
-          cid: 'mofresh_logo',
-        },
-      ],
+      attachments: logoPath
+        ? [
+            {
+              filename: 'MoFreshLogo.png',
+              path: logoPath,
+              cid: 'mofresh_logo',
+            },
+          ]
+        : [],
     };
 
     try {
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Password reset email sent to:', email);
+      this.logger.log('✅ Password reset email sent to: ' + email);
     } catch (error) {
-      console.error('❌ Error sending password reset email:', error);
-      throw new Error('Failed to send password reset email');
+      const err = error as Error;
+      this.logger.error('❌ Error sending password reset email:', err.message);
     }
   }
 }
