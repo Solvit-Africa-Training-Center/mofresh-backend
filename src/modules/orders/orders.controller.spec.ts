@@ -231,12 +231,7 @@ describe('OrdersController', () => {
 
       mockOrdersService.findByStatus.mockResolvedValue(mockOrders);
 
-      const result = await controller.findByStatus(
-        OrderStatus.REQUESTED,
-        mockUser,
-        1,
-        10,
-      );
+      const result = await controller.findByStatus(OrderStatus.REQUESTED, mockUser, 1, 10);
 
       expect(result).toEqual(mockOrders);
       expect(service.findByStatus).toHaveBeenCalledWith(

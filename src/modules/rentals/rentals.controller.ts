@@ -1,0 +1,172 @@
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
+import { RentalsService } from './rentals.service';
+import { CreateRentalDto } from './dto/create-rental.dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
+import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RentalStatus, UserRole } from '@prisma/client';
+import { RolesGuard } from '../../common/guards';
+
+@ApiTags('Rentals')
+@Controller('rentals')
+@UseGuards(RolesGuard)
+@ApiBearerAuth()
+export class RentalsController {
+  constructor(private readonly rentalsService: RentalsService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.CLIENT)
+  @ApiOperation({ summary: 'Request a rental' })
+  @ApiResponse({ status: 201, description: 'Rental requested successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid data or asset not available' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  create(@Body() dto: CreateRentalDto, @CurrentUser() user: CurrentUserPayload) {
+    if (!user.siteId) {
+      throw new BadRequestException('Client must belong to a site');
+    }
+    return this.rentalsService.createRental(user.userId, user.siteId, dto);
+  }
+
+  @Get()
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get all rentals with role-based filtering' })
+  @ApiResponse({ status: 200, description: 'List of rentals' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiQuery({ name: 'status', required: false, enum: RentalStatus })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  findAll(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('status') status?: RentalStatus,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const siteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    const parsedPage = page ? Number(page) : undefined;
+    const parsedLimit = limit ? Number(limit) : undefined;
+
+    return this.rentalsService.findAllRental(
+      siteId,
+      user.role as UserRole,
+      user.userId,
+      status,
+      parsedPage,
+      parsedLimit,
+    );
+  }
+
+  @Get(':id')
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get rental by ID with role-based access control' })
+  @ApiParam({ name: 'id', description: 'Rental ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Rental found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 404, description: 'Rental not found' })
+  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    const siteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    return this.rentalsService.findOneRental(id, siteId, user.role as UserRole, user.userId);
+  }
+
+  @Patch(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Approve a rental request (prepaid: generates invoice, stays APPROVED)',
+  })
+  @ApiParam({ name: 'id', description: 'Rental ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Rental approved and invoice generated' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Rental not in REQUESTED status or asset unavailable',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Rental not found' })
+  approve(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    // Managers must have siteId; Super admin can operate globally but still needs a target site context.
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      throw new BadRequestException('Site Manager must belong to a site');
+    }
+
+    // For SUPER_ADMIN, we expect the rental to carry its own siteId; service uses provided siteId to scope.
+    // If you want SUPER_ADMIN to approve across sites, update the service to accept undefined and not site-scope.
+    const siteId = user.siteId;
+    if (!siteId) {
+      throw new BadRequestException('siteId is required to approve a rental');
+    }
+
+    return this.rentalsService.approveRental(id, siteId, user.userId);
+  }
+
+  @Patch(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Activate a rental (prepaid: requires invoice PAID, marks asset RENTED)',
+  })
+  @ApiParam({ name: 'id', description: 'Rental ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Rental activated and asset marked as RENTED' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Rental not APPROVED or invoice not PAID',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Rental not found' })
+  activate(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      throw new BadRequestException('Site Manager must belong to a site');
+    }
+
+    const siteId = user.siteId;
+    if (!siteId) {
+      throw new BadRequestException('siteId is required to activate a rental');
+    }
+
+    return this.rentalsService.activateRental(id, siteId, user.userId);
+  }
+
+  @Patch(':id/complete')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Complete a rental (ACTIVE → COMPLETED, asset AVAILABLE)' })
+  @ApiParam({ name: 'id', description: 'Rental ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Rental completed and asset marked as AVAILABLE' })
+  @ApiResponse({ status: 400, description: 'Bad request - Rental not ACTIVE' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Rental not found' })
+  complete(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      throw new BadRequestException('Site Manager must belong to a site');
+    }
+
+    const siteId = user.siteId;
+    if (!siteId) {
+      throw new BadRequestException('siteId is required to complete a rental');
+    }
+
+    return this.rentalsService.complete(id, siteId, user.userId);
+  }
+}

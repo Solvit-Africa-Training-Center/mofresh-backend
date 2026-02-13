@@ -12,13 +12,17 @@ import { InvoicesService } from '../invoices/invoices.service';
 export class OrdersService {
   constructor(
     private readonly db: PrismaService,
-    // private readonly stockMovementService: StockMovementService,
     private readonly invoiceService: InvoicesService,
+    // private readonly stockMovementService: StockMovementService,
+    // private readonly invoiceService: InvoicesService,
   ) { }
 
 
-  private getRoleBasedFilter(siteId: string, userRole: UserRole, userId: string,):
-    Prisma.OrderWhereInput {
+  private getRoleBasedFilter(
+    siteId: string,
+    userRole: UserRole,
+    userId: string,
+  ): Prisma.OrderWhereInput {
     if (userRole === UserRole.SUPER_ADMIN) {
       return {};
     }
@@ -412,6 +416,4 @@ export class OrdersService {
   ) {
     return await this.findAllOrders(siteId, userRole, userId, status, page, limit);
   }
-
-
 }
