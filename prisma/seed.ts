@@ -1,4 +1,12 @@
-import { PrismaClient, UserRole, PowerType, AssetStatus, ProductStatus, TricycleCategory } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  PrismaClient,
+  UserRole,
+  PowerType,
+  AssetStatus,
+  ProductStatus,
+  TricycleCategory,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -38,6 +46,21 @@ async function main() {
       firstName: 'Super',
       lastName: 'Admin',
       phone: '+250788000000',
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+    },
+  });
+
+  // 1. Create Super Admin (no site)
+  console.log('👤 Creating Super Admin...');
+
+  const superAdmin2 = await prisma.user.create({
+    data: {
+      email: 'irakozeflamanc+5@gmail.com',
+      password: hashedPassword,
+      firstName: 'flaman',
+      lastName: 'super Admin',
+      phone: '+250788001111',
       role: UserRole.SUPER_ADMIN,
       isActive: true,
     },
@@ -94,12 +117,24 @@ async function main() {
     },
   });
 
+  // const manager3 = await prisma.user.create({
+  //   data: {
+  //     email: 'manager3@mofresh.rw',
+  //     password: hashedPassword,
+  //     firstName: 'David',
+  //     lastName: 'Niyonzima',
+  //     phone: '+250788333333',
+  //     role: UserRole.SITE_MANAGER,
+  //     siteId: site3.id,
+  //     isActive: true,
+  //   },
+  // });
   const manager3 = await prisma.user.create({
     data: {
-      email: 'manager3@mofresh.rw',
+      email: 'irakozeflamanc+6@gmail.com',
       password: hashedPassword,
-      firstName: 'David',
-      lastName: 'Niyonzima',
+      firstName: 'flaman',
+      lastName: 'site manager',
       phone: '+250788333333',
       role: UserRole.SITE_MANAGER,
       siteId: site3.id,
