@@ -14,7 +14,6 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
 
-<<<<<<< HEAD
   // raw body for webhook signature verification
   app.use(
     json({
@@ -26,8 +25,6 @@ async function bootstrap() {
     }),
   );
 
-=======
->>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
   app.enableCors({
     origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
     credentials: true,
