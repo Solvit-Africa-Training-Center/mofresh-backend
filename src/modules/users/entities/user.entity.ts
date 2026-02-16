@@ -25,7 +25,6 @@ export class UserEntity {
   @ApiProperty({ example: true })
   isActive: boolean;
 
-<<<<<<< HEAD
   @ApiProperty({ enum: ['PERSONAL', 'BUSINESS'], nullable: true })
   clientAccountType?: string;
 
@@ -41,8 +40,6 @@ export class UserEntity {
   @ApiProperty({ nullable: true })
   nationalIdDocument?: string;
 
-=======
->>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
   @ApiProperty()
   createdAt: Date;
 

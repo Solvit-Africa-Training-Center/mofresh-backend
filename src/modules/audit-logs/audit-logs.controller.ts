@@ -3,10 +3,7 @@ import { ApiTags, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuditLogsService } from './audit-logs.service';
 import { AuditLogEntity } from './dto/entities/audit-log.entity';
 import { CreateAuditLogDto } from './dto/create-audit-log.dto';
-<<<<<<< HEAD
-=======
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
->>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -14,11 +11,7 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 
 @ApiTags('audit-logs')
 @Controller('audit-logs')
-<<<<<<< HEAD
-@UseGuards(RolesGuard)
-=======
 @UseGuards(JwtAuthGuard, RolesGuard)
->>>>>>> 0725d90 (feat: implement product and stock management modules with RBAC, pessimistic locking, and comprehensive test coverage)
 @ApiBearerAuth()
 export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}

@@ -11,8 +11,13 @@ describe('StockMovementsService', () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let prisma: PrismaService;
 
-  const mockAdmin = { userId: 'admin-1', role: UserRole.SUPER_ADMIN };
-  const mockManager = { userId: 'mgr-1', role: UserRole.SITE_MANAGER, siteId: 'site-alpha' };
+  const mockAdmin = { userId: 'admin-1', email: 'admin@test.com', role: UserRole.SUPER_ADMIN };
+  const mockManager = {
+    userId: 'mgr-1',
+    email: 'manager@test.com',
+    role: UserRole.SITE_MANAGER,
+    siteId: 'site-alpha',
+  };
 
   const mockProduct = {
     id: 'prod-1',
