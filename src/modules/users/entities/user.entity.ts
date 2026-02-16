@@ -25,6 +25,21 @@ export class UserEntity {
   @ApiProperty({ example: true })
   isActive: boolean;
 
+  @ApiProperty({ enum: ['PERSONAL', 'BUSINESS'], nullable: true })
+  clientAccountType?: string;
+
+  @ApiProperty({ nullable: true })
+  businessName?: string;
+
+  @ApiProperty({ nullable: true })
+  tinNumber?: string;
+
+  @ApiProperty({ nullable: true })
+  businessCertificateDocument?: string;
+
+  @ApiProperty({ nullable: true })
+  nationalIdDocument?: string;
+
   @ApiProperty()
   createdAt: Date;
 

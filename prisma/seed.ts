@@ -70,6 +70,20 @@ async function main() {
     },
   });
 
+  const superAdmin3 = await prisma.user.upsert({
+    where: { email: 'munezeromas@gmail.com' },
+    update: {},
+    create: {
+      email: 'munezeromas@gmail.com',
+      password: hashedPassword,
+      firstName: 'Munezero',
+      lastName: 'Mas',
+      phone: '+250700000001',
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+    },
+  });
+
   // 2. Create 3 Sites
   console.log('🏢 Creating sites...');
   const sitesData = [
@@ -132,6 +146,21 @@ async function main() {
       phone: '+250788333333',
       role: UserRole.SITE_MANAGER,
       siteId: site3.id,
+      isActive: true,
+    },
+  });
+
+  const customManager = await prisma.user.upsert({
+    where: { email: 'munezeromas+1@gmail.com' },
+    update: { siteId: site1.id },
+    create: {
+      email: 'munezeromas+1@gmail.com',
+      password: hashedPassword,
+      firstName: 'Munezero',
+      lastName: 'Manager',
+      phone: '+250700000002',
+      role: UserRole.SITE_MANAGER,
+      siteId: site1.id,
       isActive: true,
     },
   });
@@ -437,8 +466,16 @@ async function main() {
   console.log('  Email: admin@mofresh.rw');
   console.log('  Password: Password123!');
   console.log('');
+  console.log('Super Admin (Munezero):');
+  console.log('  Email: munezeromas@gmail.com');
+  console.log('  Password: Password123!');
+  console.log('');
   console.log('Site Manager 1 (Kigali):');
   console.log('  Email: manager1@mofresh.rw');
+  console.log('  Password: Password123!');
+  console.log('');
+  console.log('Site Manager (Munezero - Kigali):');
+  console.log('  Email: munezeromas+1@gmail.com');
   console.log('  Password: Password123!');
   console.log('');
   console.log('Site Manager 2 (Musanze):');
