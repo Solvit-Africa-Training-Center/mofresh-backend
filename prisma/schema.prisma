@@ -16,6 +16,17 @@ enum UserRole {
   CLIENT
 }
 
+enum AccountType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+enum VendorRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PowerType {
   GRID
   OFF_GRID
@@ -103,13 +114,42 @@ model User {
   id                    String            @id @default(uuid())
   email                 String            @unique
   password              String            // bcrypt hashed
-  firstName             String
-  lastName              String
+  
+  // account type (INDIVIDUAL or BUSINESS)
+  accountType           AccountType
+  
+  // individual-specific fields
+  firstName             String?
+  lastName              String?
+  
+  // business-specific fields 
+  businessName          String?
+  businessType          String?           
+  registrationNumber    String?           
+  
+  // common fields
   phone                 String            @unique
-  refreshToken          String?            //Store the HASHED refresh token here
+  address               String?
+  city                  String?
+  country               String?           @default("Rwanda")
+  
+  refreshToken          String?          
   role                  UserRole
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
+  
+  // vendor request fields 
+  vendorRequested       Boolean           @default(false)
+  vendorRequestStatus   VendorRequestStatus?
+  vendorRequestedAt     DateTime?
+  vendorApprovedAt      DateTime?
+  vendorApprovedBy      String?          
+  vendorRejectedAt      DateTime?
+  vendorRejectionReason String?
+  
+  // supplier-specific fields
+  supplierType          String?           // Individual, Cooperative, Company
+  
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   deletedAt             DateTime?         // Soft delete
@@ -125,10 +165,14 @@ model User {
   approvedOrders        Order[]           @relation("ApprovedBy")
   paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
   otps                  Otp[]             @relation("UserOtps")
+  vendorRequests        VendorRequest[]   @relation("VendorRequests")
+  approvedVendors       VendorRequest[]   @relation("ApprovedBy")
 
   @@index([email])
   @@index([role])
   @@index([siteId])
+  @@index([accountType])
+  @@index([vendorRequestStatus])
   @@map("users")
 }
 
@@ -148,6 +192,38 @@ model Otp {
   @@index([userId])
   @@unique([email, code])
   @@map("otps")
+}
+
+model VendorRequest {
+  id                String              @id @default(uuid())
+  userId            String
+  status            VendorRequestStatus @default(PENDING)
+  
+  // request details
+  requestedRole     UserRole            @default(SUPPLIER)
+  businessDescription String?
+  productsOffered   String?             
+  expectedVolume    String?
+  preferredSiteId   String?
+  
+  // Approval/Rejection
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  adminNotes        String?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  user              User                @relation("VendorRequests", fields: [userId], references: [id])
+  reviewer          User?               @relation("ApprovedBy", fields: [reviewedBy], references: [id])
+  preferredSite     Site?               @relation(fields: [preferredSiteId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("vendor_requests")
 }
 
 
@@ -171,6 +247,7 @@ model Site {
   orders     Order[]
   invoices   Invoice[]
   rentals    Rental[]
+  vendorRequests VendorRequest[]
 
   @@index([managerId])
   @@map("sites")
