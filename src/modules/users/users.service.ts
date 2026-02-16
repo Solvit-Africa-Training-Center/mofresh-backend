@@ -1,18 +1,22 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
   ConflictException,
   ForbiddenException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from './../../database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { HashingUtil } from '../../common/utils/hashing.util';
-import { UserRole, Prisma, AuditAction } from '@prisma/client';
+import { UserRole, ClientAccountType, Prisma, AuditAction } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PasswordGeneratorUtil } from '../../common/utils/password-generator.util';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class UsersService {
@@ -20,13 +24,46 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async register(dto: CreateUserDto, createdByUserId?: string) {
+  async register(
+    dto: CreateUserDto,
+    createdByUserId?: string,
+    files?: {
+      businessCertificateDocument?: Express.Multer.File[];
+      nationalIdDocument?: Express.Multer.File[];
+    },
+  ) {
+    this.validateClientAccount(dto, null, files);
     if (dto.role !== UserRole.CLIENT && !createdByUserId) {
       throw new UnauthorizedException(
         `Registration for ${dto.role} requires an administrator token.`,
       );
+    }
+
+    // Validate siteId requirements based on role
+    if (dto.role === UserRole.SUPER_ADMIN && dto.siteId) {
+      throw new BadRequestException('SUPER_ADMIN users should not have a siteId');
+    }
+
+    if (dto.role !== UserRole.SUPER_ADMIN && !dto.siteId) {
+      throw new BadRequestException(`siteId is required for ${dto.role} role`);
+    }
+
+    // Validate that the site exists if siteId is provided
+    if (dto.siteId) {
+      const site = await this.prisma.site.findUnique({
+        where: { id: dto.siteId },
+      });
+
+      if (!site) {
+        throw new BadRequestException(`Site with ID ${dto.siteId} does not exist`);
+      }
+
+      if (site.deletedAt) {
+        throw new BadRequestException(`Site with ID ${dto.siteId} has been deleted`);
+      }
     }
 
     if (createdByUserId) {
@@ -69,12 +106,38 @@ export class UsersService {
         phone: dto.phone,
         role: dto.role,
         siteId: dto.siteId || null,
+        clientAccountType: dto.clientAccountType,
+        businessName: dto.businessName,
+        tinNumber: dto.tinNumber,
+        businessCertificateDocument: dto.businessCertificateDocument,
+        nationalIdDocument: dto.nationalIdDocument,
         isActive: true,
       },
     });
 
+    let finalUser = user;
+    if (files) {
+      const updateData: any = {};
+      if (files.businessCertificateDocument?.[0]) {
+        const res = await this.cloudinaryService.uploadFile(files.businessCertificateDocument[0]);
+        updateData.businessCertificateDocument = res.secure_url;
+      }
+      if (files.nationalIdDocument?.[0]) {
+        const res = await this.cloudinaryService.uploadFile(files.nationalIdDocument[0]);
+        updateData.nationalIdDocument = res.secure_url;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      if (Object.keys(updateData).length > 0) {
+        finalUser = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updateData,
+        });
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: p, refreshToken, deletedAt, ...userWithoutSensitiveData } = user;
+    const { password: p, refreshToken, deletedAt, ...userWithoutSensitiveData } = finalUser;
 
     await this.auditLogsService.createAuditLog(
       createdByUserId || user.id,
@@ -114,7 +177,52 @@ export class UsersService {
     throw new ForbiddenException('You do not have permission to register users');
   }
 
-  async update(id: string, dto: UpdateUserDto, requesterId: string) {
+  private validateClientAccount(
+    dto: CreateUserDto | UpdateUserDto,
+    existingUser?: any,
+    files?: {
+      businessCertificateDocument?: Express.Multer.File[];
+      nationalIdDocument?: Express.Multer.File[];
+    },
+  ) {
+    const role = dto.role || existingUser?.role;
+    const accountType = dto.clientAccountType || existingUser?.clientAccountType;
+
+    if (role === UserRole.CLIENT) {
+      if (!accountType) {
+        throw new BadRequestException('clientAccountType is required for CLIENT role');
+      }
+
+      if (accountType === ClientAccountType.BUSINESS) {
+        const businessName = dto.businessName || existingUser?.businessName;
+        const tinNumber = dto.tinNumber || existingUser?.tinNumber;
+        const certDoc =
+          dto.businessCertificateDocument || existingUser?.businessCertificateDocument;
+        const idDoc = dto.nationalIdDocument || existingUser?.nationalIdDocument;
+
+        if (!businessName)
+          throw new BadRequestException('businessName is required for BUSINESS accounts');
+        if (!tinNumber)
+          throw new BadRequestException('tinNumber is required for BUSINESS accounts');
+        if (!certDoc && !files?.businessCertificateDocument?.[0]) {
+          throw new BadRequestException('businessCertificateDocument is required');
+        }
+        if (!idDoc && !files?.nationalIdDocument?.[0]) {
+          throw new BadRequestException('nationalIdDocument is required');
+        }
+      }
+    }
+  }
+
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    requesterId: string,
+    files?: {
+      businessCertificateDocument?: Express.Multer.File[];
+      nationalIdDocument?: Express.Multer.File[];
+    },
+  ) {
     const requester = await this.prisma.user.findUnique({
       where: { id: requesterId },
       select: { role: true, siteId: true },
@@ -125,6 +233,8 @@ export class UsersService {
     }
 
     const { data: targetUser } = await this.findOne(id);
+
+    this.validateClientAccount(dto, targetUser, files);
 
     if (requester.role === UserRole.SITE_MANAGER) {
       if (targetUser.siteId !== requester.siteId) {
@@ -144,6 +254,17 @@ export class UsersService {
 
     if (password) {
       updateData.password = await HashingUtil.hash(password);
+    }
+
+    if (files) {
+      if (files.businessCertificateDocument?.[0]) {
+        const res = await this.cloudinaryService.uploadFile(files.businessCertificateDocument[0]);
+        updateData.businessCertificateDocument = res.secure_url;
+      }
+      if (files.nationalIdDocument?.[0]) {
+        const res = await this.cloudinaryService.uploadFile(files.nationalIdDocument[0]);
+        updateData.nationalIdDocument = res.secure_url;
+      }
     }
 
     const updatedUser = await this.prisma.user.update({

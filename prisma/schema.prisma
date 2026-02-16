@@ -16,10 +16,6 @@ enum UserRole {
   CLIENT
 }
 
-enum AccountType {
-  INDIVIDUAL
-  BUSINESS
-}
 
 enum VendorRequestStatus {
   PENDING
@@ -108,36 +104,37 @@ enum AuditAction {
   LOGOUT
 }
 
+enum ClientAccountType {
+  PERSONAL
+  BUSINESS
+}
+
 // ===== MODELS =====
 
 model User {
   id                    String            @id @default(uuid())
   email                 String            @unique
   password              String            // bcrypt hashed
-  
-  // account type (INDIVIDUAL or BUSINESS)
-  accountType           AccountType
-  
-  // individual-specific fields
+
   firstName             String?
   lastName              String?
   
-  // business-specific fields 
-  businessName          String?
-  businessType          String?           
-  registrationNumber    String?           
-  
   // common fields
   phone                 String            @unique
-  address               String?
-  city                  String?
-  country               String?           @default("Rwanda")
-  
+
   refreshToken          String?          
   role                  UserRole
+  clientAccountType ClientAccountType?  // nullable enum
+
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
-  
+
+  // business account fields (for CLIENT with BUSINESS account type)
+  businessName                String?
+  tinNumber                   String?
+  businessCertificateDocument String?   // URL to uploaded document
+  nationalIdDocument          String?   // URL to uploaded document
+
   // vendor request fields 
   vendorRequested       Boolean           @default(false)
   vendorRequestStatus   VendorRequestStatus?
@@ -146,13 +143,13 @@ model User {
   vendorApprovedBy      String?          
   vendorRejectedAt      DateTime?
   vendorRejectionReason String?
-  
+
   // supplier-specific fields
   supplierType          String?           // Individual, Cooperative, Company
-  
+
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
-  deletedAt             DateTime?         // Soft delete
+  deletedAt             DateTime?
 
   // Relations
   site                  Site?             @relation(fields: [siteId], references: [id])
@@ -171,7 +168,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([siteId])
-  @@index([accountType])
+  @@index([clientAccountType])
   @@index([vendorRequestStatus])
   @@map("users")
 }

@@ -44,10 +44,10 @@ describe('UsersController', () => {
         phone: '1234567890',
       };
 
-      const result = await controller.register(createUserDto, undefined);
+      const result = await controller.register(createUserDto, undefined, undefined);
       expect(result.status).toBe('success');
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.register).toHaveBeenCalledWith(createUserDto, undefined);
+      expect(service.register).toHaveBeenCalledWith(createUserDto, undefined, undefined);
     });
   });
 });
