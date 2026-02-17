@@ -3,6 +3,11 @@ import { OrdersService } from './orders.service';
 import { PrismaService } from '../../database/prisma.service';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, UserRole } from '@prisma/client';
+import { StockMovementsService } from '../stock-movements/stock-movements.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { InvoicesService } from '../invoices/invoices.service';
+
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -33,6 +38,18 @@ describe('OrdersService', () => {
     $transaction: jest.fn(),
   };
 
+  const mockStockMovementsService = {
+    recordMovement: jest.fn(),
+  };
+
+  const mockAuditLogsService = {
+    createAuditLog: jest.fn(),
+  };
+
+  const mockInvoicesService = {
+    generateOrderInvoice: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -40,6 +57,18 @@ describe('OrdersService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: StockMovementsService,
+          useValue: mockStockMovementsService,
+        },
+        {
+          provide: AuditLogsService,
+          useValue: mockAuditLogsService,
+        },
+        {
+          provide: InvoicesService,
+          useValue: mockInvoicesService,
         },
       ],
     }).compile();
@@ -192,6 +221,7 @@ describe('OrdersService', () => {
   describe('rejectOrders', () => {
     const orderId = 'order-123';
     const siteId = 'site-123';
+    const userId = 'manager-123';
     const rejectDto = { rejectionReason: 'Insufficient stock' };
 
     it('should reject order successfully', async () => {
@@ -207,7 +237,7 @@ describe('OrdersService', () => {
         rejectionReason: rejectDto.rejectionReason,
       });
 
-      const result = await service.rejectOrders(orderId, siteId, rejectDto);
+      const result = await service.rejectOrders(orderId, siteId, userId, rejectDto);
 
       expect(result.status).toBe(OrderStatus.REJECTED);
       expect(mockPrismaService.order.update).toHaveBeenCalled();
@@ -216,7 +246,7 @@ describe('OrdersService', () => {
     it('should throw error if order not found', async () => {
       mockPrismaService.order.findFirst.mockResolvedValue(null);
 
-      await expect(service.rejectOrders(orderId, siteId, rejectDto)).rejects.toThrow(
+      await expect(service.rejectOrders(orderId, siteId, userId, rejectDto)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -227,7 +257,7 @@ describe('OrdersService', () => {
         status: OrderStatus.APPROVED,
       });
 
-      await expect(service.rejectOrders(orderId, siteId, rejectDto)).rejects.toThrow(
+      await expect(service.rejectOrders(orderId, siteId, userId, rejectDto)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -561,16 +591,17 @@ describe('OrdersService', () => {
     });
   });
 
-  describe('approveOrders - transaction logic', () => {
+  describe('approveOrders - StockMovementsService integration', () => {
     const orderId = 'order-123';
     const approverId = 'manager-123';
     const siteId = 'site-123';
 
-    it('should execute full approval transaction', async () => {
+    it('should execute full approval with stock reservation', async () => {
       const mockOrder = {
         id: orderId,
         siteId,
         status: OrderStatus.REQUESTED,
+        totalAmount: 10000,
         items: [
           {
             productId: 'product-1',
@@ -585,74 +616,33 @@ describe('OrdersService', () => {
         ],
       };
 
-      const mockTransaction = {
-        product: {
-          findUnique: jest.fn().mockResolvedValue({
-            quantityKg: 100,
-            coldRoomId: 'coldroom-1',
-            name: 'Milk',
-          }),
-          update: jest.fn().mockResolvedValue({}),
-        },
-        stockMovement: {
-          create: jest.fn().mockResolvedValue({}),
-        },
-        coldRoom: {
-          update: jest.fn().mockResolvedValue({}),
-        },
-        order: {
-          update: jest.fn().mockResolvedValue({
-            ...mockOrder,
-            status: OrderStatus.APPROVED,
-            approvedBy: approverId,
-            approvedAt: new Date(),
-          }),
-        },
-      };
-
       mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
-      mockPrismaService.$transaction.mockImplementation(async (callback) => {
-        return await callback(mockTransaction);
+      mockStockMovementsService.recordMovement.mockResolvedValue({});
+      mockPrismaService.order.update.mockResolvedValue({
+        ...mockOrder,
+        status: OrderStatus.APPROVED,
+        approvedBy: approverId,
+        approvedAt: new Date(),
       });
+      mockInvoicesService.generateOrderInvoice.mockResolvedValue({});
+      mockAuditLogsService.createAuditLog.mockResolvedValue({});
 
       const result = await service.approveOrders(orderId, approverId, siteId);
 
       expect(result.status).toBe(OrderStatus.APPROVED);
-      // expect(mockTransaction.product.update).toHaveBeenCalled();
-      // expect(mockTransaction.stockMovement.create).toHaveBeenCalled();
-      // expect(mockTransaction.coldRoom.update).toHaveBeenCalled();
-    });
-
-    it('should throw error if product not found in transaction', async () => {
-      const mockOrder = {
-        id: orderId,
-        siteId,
-        status: OrderStatus.REQUESTED,
-        items: [
-          {
-            productId: 'product-1',
-            quantityKg: 10,
-          },
-        ],
-      };
-
-      const mockTransaction = {
-        product: {
-          findUnique: jest.fn().mockResolvedValue(null),
-        },
-      };
-
-      mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
-      mockPrismaService.$transaction.mockImplementation(async (callback) => {
-        return await callback(mockTransaction);
-      });
-
-      await expect(service.approveOrders(orderId, approverId, siteId)).rejects.toThrow(
-        BadRequestException,
+      expect(mockStockMovementsService.recordMovement).toHaveBeenCalledWith(
+        expect.objectContaining({
+          productId: 'product-1',
+          quantityKg: 10,
+          movementType: 'OUT',
+        }),
+        expect.any(Object),
       );
+      expect(mockInvoicesService.generateOrderInvoice).toHaveBeenCalledWith(orderId);
+      expect(mockAuditLogsService.createAuditLog).toHaveBeenCalled();
     });
 
-    it('should throw error if insufficient stock in transaction', async () => {
+    it('should throw error if stock reservation fails', async () => {
       const mockOrder = {
         id: orderId,
         siteId,
@@ -661,24 +651,18 @@ describe('OrdersService', () => {
           {
             productId: 'product-1',
             quantityKg: 100,
+            product: {
+              id: 'product-1',
+              coldRoomId: 'coldroom-1',
+            },
           },
         ],
       };
 
-      const mockTransaction = {
-        product: {
-          findUnique: jest.fn().mockResolvedValue({
-            quantityKg: 50,
-            coldRoomId: 'coldroom-1',
-            name: 'Milk',
-          }),
-        },
-      };
-
       mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
-      mockPrismaService.$transaction.mockImplementation(async (callback) => {
-        return await callback(mockTransaction);
-      });
+      mockStockMovementsService.recordMovement.mockRejectedValue(
+        new BadRequestException('Insufficient stock balance'),
+      );
 
       await expect(service.approveOrders(orderId, approverId, siteId)).rejects.toThrow(
         BadRequestException,

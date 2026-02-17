@@ -1,13 +1,25 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, RejectOrderDto } from './dto';
 import { OrderStatus, UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RolesGuard } from '../../common/guards';
 @ApiTags('Orders')
-@ApiBearerAuth()
 @Controller('orders')
+@UseGuards(RolesGuard)
+@ApiBearerAuth()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
@@ -22,6 +34,7 @@ export class OrdersController {
   }
 
   @Get()
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get all orders with pagination' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiQuery({
@@ -59,6 +72,7 @@ export class OrdersController {
   }
 
   @Get(':id')
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get order by ID' })
   @ApiResponse({ status: 200, description: 'Order retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Order not found' })
@@ -89,10 +103,27 @@ export class OrdersController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() rejectOrderDto: RejectOrderDto,
   ) {
-    return await this.ordersService.rejectOrders(id, user.siteId, rejectOrderDto);
+    return await this.ordersService.rejectOrders(id, user.siteId, user.userId, rejectOrderDto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Delete an order (only REQUESTED orders)' })
+  @ApiResponse({ status: 200, description: 'Order deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Order cannot be deleted' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  async delete(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return await this.ordersService.deleteOrder(
+      id,
+      user.userId,
+      user.siteId,
+      user.role as UserRole,
+    );
   }
 
   @Get('status/:status')
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get orders by status' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiQuery({

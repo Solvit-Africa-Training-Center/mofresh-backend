@@ -4,6 +4,8 @@ import { OrdersService } from './orders.service';
 import { OrderStatus, UserRole } from '@prisma/client';
 import { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 
+/* eslint-disable @typescript-eslint/unbound-method */
+
 describe('OrdersController', () => {
   let controller: OrdersController;
   let service: OrdersService;
@@ -214,7 +216,12 @@ describe('OrdersController', () => {
       const result = await controller.reject('order-123', mockUser, rejectDto);
 
       expect(result).toEqual(mockOrder);
-      expect(service.rejectOrders).toHaveBeenCalledWith('order-123', 'site-123', rejectDto);
+      expect(service.rejectOrders).toHaveBeenCalledWith(
+        'order-123',
+        'site-123',
+        'manager-123',
+        rejectDto,
+      );
     });
   });
 

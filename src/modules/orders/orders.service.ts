@@ -1,11 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { OrderStatus, UserRole, Prisma } from '@prisma/client';
+import { OrderStatus, UserRole, Prisma, AuditAction, StockMovementType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateOrderDto, RejectOrderDto } from './dto';
 import { paginate } from '../../common/utils/paginator';
-
-// import { StockMovementService } from '../stock-movements/stock-movements.service';
-
+import { StockMovementsService } from '../stock-movements/stock-movements.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
@@ -13,10 +12,9 @@ export class OrdersService {
   constructor(
     private readonly db: PrismaService,
     private readonly invoiceService: InvoicesService,
-    // private readonly stockMovementService: StockMovementService,
-    // private readonly invoiceService: InvoicesService,
-  ) { }
-
+    private readonly stockMovementsService: StockMovementsService,
+    private readonly auditLogsService: AuditLogsService,
+  ) {}
 
   private getRoleBasedFilter(
     siteId: string,
@@ -124,6 +122,13 @@ export class OrdersService {
       },
     });
 
+    // Audit log
+    await this.auditLogsService.createAuditLog(clientId, AuditAction.CREATE, 'ORDER', order.id, {
+      totalAmount: order.totalAmount,
+      itemCount: items.length,
+      siteId,
+    });
+
     return order;
   }
 
@@ -153,78 +158,63 @@ export class OrdersService {
       );
     }
 
-    return await this.db.$transaction(async (tx) => {
-      // await this.stockMovementService.reserveStock(order.items, approverId);
-      await this.reserveStock(tx, order.items, orderId, approverId);
-      const updatedOrder = await tx.order.update({
-        where: { id: orderId },
-        data: {
-          status: OrderStatus.APPROVED,
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          client: true,
-        },
-      });
-
-      await this.invoiceService.generateOrderInvoice(orderId);
-
-      return updatedOrder;
-    });
-  }
-
-  private async reserveStock(
-    tx: Prisma.TransactionClient,
-    items: Array<{ productId: string; quantityKg: number }>,
-    orderId: string,
-    approverId: string,
-  ) {
-    for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { quantityKg: true, coldRoomId: true, name: true },
-      });
-
-      if (!product || product.quantityKg < item.quantityKg) {
-        throw new BadRequestException(
-          `Insufficient stock for "${product?.name || item.productId}"`,
-        );
-      }
-
-      await tx.product.update({
-        where: { id: item.productId },
-        data: {
-          quantityKg: { decrement: item.quantityKg },
-        },
-      });
-
-      await tx.stockMovement.create({
-        data: {
+    // Reserve
+    for (const item of order.items) {
+      await this.stockMovementsService.recordMovement(
+        {
           productId: item.productId,
-          coldRoomId: product.coldRoomId,
+          coldRoomId: item.product.coldRoomId,
           quantityKg: item.quantityKg,
-          movementType: 'OUT',
+          movementType: StockMovementType.OUT,
           reason: `Order ${orderId} approved - stock reserved`,
-          createdBy: approverId,
         },
-      });
-
-      await tx.coldRoom.update({
-        where: { id: product.coldRoomId },
-        data: {
-          usedCapacityKg: { decrement: item.quantityKg },
-        },
-      });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        {
+          userId: approverId,
+          role: UserRole.SITE_MANAGER,
+          siteId,
+        } as any,
+      );
     }
+
+    // Update order status
+    const updatedOrder = await this.db.order.update({
+      where: { id: orderId },
+      data: {
+        status: OrderStatus.APPROVED,
+        approvedBy: approverId,
+        approvedAt: new Date(),
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        client: true,
+      },
+    });
+
+    // Generate invoice
+    await this.invoiceService.generateOrderInvoice(orderId);
+
+    // Audit log
+    await this.auditLogsService.createAuditLog(approverId, AuditAction.UPDATE, 'ORDER', orderId, {
+      action: 'APPROVE',
+      previousStatus: 'REQUESTED',
+      newStatus: 'APPROVED',
+      totalAmount: order.totalAmount,
+    });
+
+    return updatedOrder;
   }
 
-  async rejectOrders(orderId: string, siteId: string, rejectOrderDto: RejectOrderDto) {
+  async rejectOrders(
+    orderId: string,
+    siteId: string,
+    userId: string,
+    rejectOrderDto: RejectOrderDto,
+  ) {
     const order = await this.db.order.findFirst({
       where: {
         id: orderId,
@@ -243,7 +233,7 @@ export class OrdersService {
       );
     }
 
-    return await this.db.order.update({
+    const rejectedOrder = await this.db.order.update({
       where: { id: orderId },
       data: {
         status: OrderStatus.REJECTED,
@@ -259,6 +249,58 @@ export class OrdersService {
         client: true,
       },
     });
+
+    // Audit log
+    await this.auditLogsService.createAuditLog(userId, AuditAction.UPDATE, 'ORDER', orderId, {
+      action: 'REJECT',
+      previousStatus: 'REQUESTED',
+      newStatus: 'REJECTED',
+      reason: rejectOrderDto.rejectionReason,
+    });
+
+    return rejectedOrder;
+  }
+
+  async deleteOrder(orderId: string, userId: string, siteId: string, userRole: UserRole) {
+    const order = await this.db.order.findUnique({
+      where: { id: orderId, deletedAt: null },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    // Authorization: Only order owner can delete, or site manager/super admin
+    if (userRole === UserRole.CLIENT && order.clientId !== userId) {
+      throw new BadRequestException('You can only delete your own orders');
+    }
+
+    // Site managers can only delete orders from their site
+    if (userRole === UserRole.SITE_MANAGER && order.siteId !== siteId) {
+      throw new BadRequestException('You can only delete orders from your site');
+    }
+
+    // Can only delete orders that are in REQUESTED status
+    if (order.status !== OrderStatus.REQUESTED) {
+      throw new BadRequestException(
+        `Cannot delete order with status ${order.status}. Only REQUESTED orders can be deleted.`,
+      );
+    }
+
+    // Soft delete the order
+    const deletedOrder = await this.db.order.update({
+      where: { id: orderId },
+      data: { deletedAt: new Date() },
+    });
+
+    // Audit log
+    await this.auditLogsService.createAuditLog(userId, AuditAction.DELETE, 'ORDER', orderId, {
+      action: 'DELETE',
+      previousStatus: order.status,
+      deletedBy: userRole,
+    });
+
+    return deletedOrder;
   }
 
   async findAllOrders(

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { AssetType, RentalStatus } from '@prisma/client';
+import { AssetType } from '@prisma/client';
 import {
   IsDateString,
   IsEnum,
@@ -46,6 +46,15 @@ export class CreateRentalDto {
   @IsOptional()
   @IsUUID()
   tricycleId?: string;
+
+  @ApiProperty({
+    description: 'ID of the Cold Room (if applicable)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  coldRoomId?: string;
 
   @ApiProperty({
     description: 'Start date of the rental',

@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import {
   AssetStatus,
   AssetType,
@@ -16,13 +23,14 @@ import { InvoicesService } from '../invoices/invoices.service';
 type AssetRef = { assetType: AssetType; assetId: string };
 
 @Injectable()
-export class RentalsService {
+export class RentalsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RentalsService.name);
+  private activationInterval: NodeJS.Timeout;
 
   constructor(
     private readonly db: PrismaService,
     private readonly invoicesService: InvoicesService,
-  ) {}
+  ) { }
 
   private getRoleBasedFilter(
     siteId: string | undefined,
@@ -49,19 +57,29 @@ export class RentalsService {
   }
 
   private resolveAsset(dto: CreateRentalDto): AssetRef {
-    const { assetType, coldBoxId, coldPlateId, tricycleId } = dto;
+    const { assetType, coldBoxId, coldPlateId, tricycleId, coldRoomId } = dto;
 
     const provided: AssetRef[] = [];
     if (coldBoxId) provided.push({ assetType: AssetType.COLD_BOX, assetId: coldBoxId });
     if (coldPlateId) provided.push({ assetType: AssetType.COLD_PLATE, assetId: coldPlateId });
     if (tricycleId) provided.push({ assetType: AssetType.TRICYCLE, assetId: tricycleId });
+    if (coldRoomId) provided.push({ assetType: AssetType.COLD_ROOM, assetId: coldRoomId });
 
-    if (provided.length !== 1) {
+    // User must provide exactly one asset ID
+    if (provided.length === 0) {
       throw new BadRequestException(
-        'Provide exactly one asset id: coldBoxId OR coldPlateId OR tricycleId',
+        `Please select a specific ${assetType} .`,
       );
     }
 
+    // If multiple IDs provided, throw error
+    if (provided.length > 1) {
+      throw new BadRequestException(
+        'Provide exactly one asset id: coldBoxId OR coldPlateId OR tricycleId OR coldRoomId',
+      );
+    }
+
+    // Validate that provided asset type matches the ID type
     const selected = provided[0];
     if (selected.assetType !== assetType) {
       throw new BadRequestException(
@@ -77,25 +95,26 @@ export class RentalsService {
     coldBoxId: string | null;
     coldPlateId: string | null;
     tricycleId: string | null;
+    coldRoomId: string | null;
   }): AssetRef {
-    const assetId = rental.coldBoxId ?? rental.coldPlateId ?? rental.tricycleId;
+    const assetId =
+      rental.coldBoxId ?? rental.coldPlateId ?? rental.tricycleId ?? rental.coldRoomId;
     if (!assetId) throw new BadRequestException('Rental has no associated asset');
     return { assetType: rental.assetType, assetId };
   }
-
-  // ----------------------------
-  // Asset operations inside RentalsService (as requested)
-  // ----------------------------
-  private mapAssetTypeToModel(assetType: AssetType): 'coldBox' | 'coldPlate' | 'tricycle' {
+  private mapAssetTypeToModel(
+    assetType: AssetType,
+  ): 'coldBox' | 'coldPlate' | 'tricycle' | 'coldRoom' {
     if (assetType === AssetType.COLD_BOX) return 'coldBox';
     if (assetType === AssetType.COLD_PLATE) return 'coldPlate';
-    return 'tricycle';
+    if (assetType === AssetType.TRICYCLE) return 'tricycle';
+    return 'coldRoom';
   }
 
   private async checkAvailability(assetType: AssetType, assetId: string, siteId: string) {
     const modelKey = this.mapAssetTypeToModel(assetType);
-    const model = (this.db as any)[modelKey];
 
+    const model = (this.db as any)[modelKey];
     const asset = await model.findFirst({
       where: { id: assetId, siteId, deletedAt: null },
       select: { status: true },
@@ -105,9 +124,11 @@ export class RentalsService {
   }
 
   private async markAsRented(assetType: AssetType, assetId: string, tx?: Prisma.TransactionClient) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const client = (tx ?? this.db) as any;
     const modelKey = this.mapAssetTypeToModel(assetType);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await client[modelKey].update({
       where: { id: assetId },
       data: { status: AssetStatus.RENTED },
@@ -121,17 +142,38 @@ export class RentalsService {
   ) {
     const client = (tx ?? this.db) as any;
     const modelKey = this.mapAssetTypeToModel(assetType);
-
     await client[modelKey].update({
       where: { id: assetId },
       data: { status: AssetStatus.AVAILABLE },
     });
   }
 
-  /**
-   * create rental request (client)
-   * validates asset availability and date range
-   */
+  async getAvailableAssetsByType(assetType: AssetType, siteId: string) {
+    this.logger.log(`Fetching available ${assetType} assets for site: ${siteId}`);
+
+    const modelKey = this.mapAssetTypeToModel(assetType);
+    const model = (this.db as any)[modelKey];
+    const assets = await model.findMany({
+      where: {
+        siteId,
+        status: AssetStatus.AVAILABLE,
+        deletedAt: null,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      assetType,
+      siteId,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      count: assets.length,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      assets,
+    };
+  }
+
   async createRental(userId: string, siteId: string, dto: CreateRentalDto) {
     this.logger.log(`Creating rental request for client: ${userId}`);
 
@@ -141,14 +183,20 @@ export class RentalsService {
     const available = await this.checkAvailability(assetType, assetId, siteId);
     if (!available) throw new BadRequestException(`${assetType} is not available`);
 
+    // Map the resolved assetId to the correct field based on asset type
+    const assetIdMapping = {
+      coldBoxId: assetType === AssetType.COLD_BOX ? assetId : null,
+      coldPlateId: assetType === AssetType.COLD_PLATE ? assetId : null,
+      tricycleId: assetType === AssetType.TRICYCLE ? assetId : null,
+      coldRoomId: assetType === AssetType.COLD_ROOM ? assetId : null,
+    };
+
     return this.db.rental.create({
       data: {
         clientId: userId,
         siteId,
         assetType,
-        coldBoxId: dto.coldBoxId,
-        coldPlateId: dto.coldPlateId,
-        tricycleId: dto.tricycleId,
+        ...assetIdMapping,
         rentalStartDate: start,
         rentalEndDate: end,
         estimatedFee: dto.estimatedFee,
@@ -159,14 +207,11 @@ export class RentalsService {
         coldBox: true,
         coldPlate: true,
         tricycle: true,
+        coldRoom: true,
       },
     });
   }
 
-  /**
-   * get all rentals with role-based filtering
-   * supports pagination and status filtering
-   */
   async findAllRental(
     siteId: string | undefined,
     userRole: UserRole,
@@ -191,14 +236,11 @@ export class RentalsService {
         coldBox: true,
         coldPlate: true,
         tricycle: true,
+        coldRoom: true,
       },
     });
   }
 
-  /**
-   * get rental by ID with role-based access control
-   * enforces site scoping and client ownership
-   */
   async findOneRental(
     rentalId: string,
     siteId: string | undefined,
@@ -218,6 +260,7 @@ export class RentalsService {
         coldBox: true,
         coldPlate: true,
         tricycle: true,
+        coldRoom: true,
         invoice: true,
       },
     });
@@ -226,11 +269,10 @@ export class RentalsService {
     return rental;
   }
 
-  /**
-   * approve rental request (prepaid flow)
-   * generates invoice and updates status to APPROVED
-   * uses database transaction to ensure data consistency
-   */
+
+  //generates invoice and updates status to APPROVED
+  // uses database transaction to ensure data consistency
+
   async approveRental(rentalId: string, siteId: string, userId: string) {
     this.logger.log(`Approving rental: ${rentalId}`);
 
@@ -244,6 +286,7 @@ export class RentalsService {
           coldBoxId: true,
           coldPlateId: true,
           tricycleId: true,
+          coldRoomId: true,
         },
       });
 
@@ -295,11 +338,7 @@ export class RentalsService {
     return { rental: approvedRental, invoice };
   }
 
-  /**
-   * activate rental (prepaid flow)
-   * requires invoice to be PAID, then marks asset as RENTED
-   * uses database transaction to ensure atomicity
-   */
+  //activating rentals after being paid
   async activateRental(rentalId: string, siteId: string, userId: string) {
     this.logger.log(`Activating rental: ${rentalId}`);
     return this.db.$transaction(async (tx) => {
@@ -312,6 +351,7 @@ export class RentalsService {
           coldBoxId: true,
           coldPlateId: true,
           tricycleId: true,
+          coldRoomId: true,
         },
       });
 
@@ -366,12 +406,7 @@ export class RentalsService {
       });
     });
   }
-
-  /**
-   * complete rental
-   * marks rental as COMPLETED and releases asset to AVAILABLE
-   * uses database transaction to ensure atomicity
-   */
+  //  complete rental
   async complete(rentalId: string, siteId: string, userId: string) {
     this.logger.log(`Completing rental: ${rentalId}`);
     return this.db.$transaction(async (tx) => {
@@ -384,6 +419,7 @@ export class RentalsService {
           coldBoxId: true,
           coldPlateId: true,
           tricycleId: true,
+          coldRoomId: true,
         },
       });
 
@@ -416,5 +452,59 @@ export class RentalsService {
 
       return completedRental;
     });
+  }
+
+  async onModuleInit() {
+    this.logger.log('Starting auto-activation polling for rentals...');
+    // Poll every 60 seconds
+    this.activationInterval = setInterval(() => {
+      void this.autoActivateRentals();
+    }, 60000);
+  }
+
+  onModuleDestroy() {
+    if (this.activationInterval) {
+      clearInterval(this.activationInterval);
+    }
+  }
+
+  // Automatically activate rentals that have been paid
+
+  async autoActivateRentals() {
+    try {
+      this.logger.debug('Checking for paid rentals to activate...');
+
+      // Find all APPROVED rentals that have a PAID invoice
+      const paidRentals = await this.db.rental.findMany({
+        where: {
+          status: RentalStatus.APPROVED,
+          invoice: {
+            status: InvoiceStatus.PAID,
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          siteId: true,
+          clientId: true,
+        },
+      });
+
+      if (paidRentals.length > 0) {
+        this.logger.log(`Found ${paidRentals.length} paid rentals to activate`);
+      }
+
+      for (const rental of paidRentals) {
+        try {
+          await this.activateRental(rental.id, rental.siteId, 'SYSTEM');
+          this.logger.log(`Auto-activated rental ${rental.id}`);
+        } catch (error) {
+          this.logger.error(`Failed to auto-activate rental ${rental.id}`, error);
+          // Continue to next rental even if one fails
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error in autoActivateRentals polling', error);
+    }
   }
 }
