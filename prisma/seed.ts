@@ -9,6 +9,11 @@ import {
   AssetStatus,
   ProductStatus,
   TricycleCategory,
+  RentalStatus,
+  AssetType,
+  InvoiceStatus,
+  PaymentMethod,
+  PaymentStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -222,6 +227,20 @@ async function main() {
       isActive: true,
     },
   });
+  const client3 = await prisma.user.upsert({
+    where: { email: 'jeromeboitenge@gmail.com' },
+    update: { siteId: site2.id },
+    create: {
+      email: 'jeromeboitenge@gmail.com',
+      password: hashedPassword,
+      firstName: 'boitenge',
+      lastName: 'jerome',
+      phone: '+250782433539',
+      role: UserRole.CLIENT,
+      siteId: site2.id,
+      isActive: true,
+    },
+  });
 
   // 6. Create Cold Rooms
   console.log('❄️ Creating Cold Rooms...');
@@ -429,6 +448,128 @@ async function main() {
     where: { id: coldRoom2.id },
     data: { usedCapacityKg: 500 }, // 300 + 200
   });
+
+  // 11. Create Rentals
+  console.log('🤝 Creating Rentals...');
+
+  // Rental 1: REQUESTED (Client 1, Site 1, ColdBox 1)
+  const rental1 = await prisma.rental.create({
+    data: {
+      clientId: client1.id,
+      siteId: site1.id,
+      assetType: AssetType.COLD_BOX,
+      coldBoxId: coldBoxesData[0].identificationNumber ?
+        (await prisma.coldBox.findUnique({ where: { identificationNumber: coldBoxesData[0].identificationNumber } }))?.id
+        : undefined,
+      status: RentalStatus.REQUESTED,
+      rentalStartDate: new Date(new Date().setDate(new Date().getDate() + 1)), // Starts tomorrow
+      rentalEndDate: new Date(new Date().setDate(new Date().getDate() + 5)),
+      estimatedFee: 5000,
+    },
+  });
+
+  // Rental 2: APPROVED (Client 2, Site 2, Tricycle) - Needs Invoice
+  const tricycleAsset = await prisma.tricycle.findFirst({ where: { siteId: site2.id } });
+  if (tricycleAsset) {
+    const rental2 = await prisma.rental.create({
+      data: {
+        clientId: client2.id,
+        siteId: site2.id,
+        assetType: AssetType.TRICYCLE,
+        tricycleId: tricycleAsset.id,
+        status: RentalStatus.APPROVED,
+        rentalStartDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+        rentalEndDate: new Date(new Date().setDate(new Date().getDate() + 4)),
+        estimatedFee: 15000,
+        approvedAt: new Date(),
+      },
+    });
+
+    // Create Invoice for Rental 2
+    await prisma.invoice.create({
+      data: {
+        invoiceNumber: 'INV-RENT-002',
+        rentalId: rental2.id,
+        clientId: client2.id,
+        siteId: site2.id,
+        subtotal: 15000,
+        totalAmount: 15000,
+        status: InvoiceStatus.UNPAID,
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 2)), // Due on start date
+        items: {
+          create: {
+            description: 'Tricycle Rental',
+            quantity: 1,
+            unit: 'Days',
+            unitPrice: 15000,
+            subtotal: 15000,
+          }
+        }
+      }
+    });
+  }
+
+  // Rental 3: ACTIVE (Client 1, Site 1, ColdPlate) - Needs Paid Invoice & Asset status update
+  const coldPlateAsset = await prisma.coldPlate.findFirst({ where: { siteId: site1.id, identificationNumber: 'CP-KGL-001' } });
+  if (coldPlateAsset) {
+    const rental3 = await prisma.rental.create({
+      data: {
+        clientId: client1.id,
+        siteId: site1.id,
+        assetType: AssetType.COLD_PLATE,
+        coldPlateId: coldPlateAsset.id,
+        status: RentalStatus.ACTIVE,
+        rentalStartDate: new Date(new Date().setDate(new Date().getDate() - 1)), // Started yesterday
+        rentalEndDate: new Date(new Date().setDate(new Date().getDate() + 2)),
+        estimatedFee: 3000,
+        actualFee: 3000,
+        approvedAt: new Date(new Date().setDate(new Date().getDate() - 2)),
+      },
+    });
+
+    // Create Paid Invoice for Rental 3
+    const invoice3 = await prisma.invoice.create({
+      data: {
+        invoiceNumber: 'INV-RENT-003',
+        rentalId: rental3.id,
+        clientId: client1.id,
+        siteId: site1.id,
+        subtotal: 3000,
+        totalAmount: 3000,
+        paidAmount: 3000,
+        status: InvoiceStatus.PAID,
+        dueDate: new Date(new Date().setDate(new Date().getDate() - 1)),
+        items: {
+          create: {
+            description: 'Cold Plate Rental',
+            quantity: 1,
+            unit: 'Days',
+            unitPrice: 3000,
+            subtotal: 3000,
+          }
+        }
+      }
+    });
+
+    // Create Payment for Invoice 3
+    await prisma.payment.create({
+      data: {
+        invoiceId: invoice3.id,
+        amount: 3000,
+        paymentMethod: PaymentMethod.MOBILE_MONEY,
+        status: PaymentStatus.PAID,
+        paidAt: new Date(),
+        momoTransactionRef: 'MOMO-REF-001',
+        phoneNumber: '+250788666666'
+      }
+    });
+
+    // Mark Asset as RENTED
+    await prisma.coldPlate.update({
+      where: { id: coldPlateAsset.id },
+      data: { status: AssetStatus.RENTED }
+    });
+  }
 
   console.log('✅ Database seeding completed successfully!');
   console.log('\n📋 Login Credentials:');
