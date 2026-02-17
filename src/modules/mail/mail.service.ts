@@ -66,6 +66,7 @@ export class MailService implements OnModuleInit {
     } catch (error: any) {
       this.logger.error(`❌ Brevo Failure: ${error.message}`);
     }
+
   }
 
   async sendOtpEmail(email: string, otp: string) {

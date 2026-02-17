@@ -1,3 +1,6 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,13 +17,6 @@ enum UserRole {
   SITE_MANAGER
   SUPPLIER
   CLIENT
-}
-
-
-enum VendorRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
 }
 
 enum PowerType {
@@ -104,52 +100,22 @@ enum AuditAction {
   LOGOUT
 }
 
-enum ClientAccountType {
-  PERSONAL
-  BUSINESS
-}
-
 // ===== MODELS =====
 
 model User {
   id                    String            @id @default(uuid())
   email                 String            @unique
   password              String            // bcrypt hashed
-
-  firstName             String?
-  lastName              String?
-  
-  // common fields
+  firstName             String
+  lastName              String
   phone                 String            @unique
-
-  refreshToken          String?          
+  refreshToken          String?            //Store the HASHED refresh token here
   role                  UserRole
-  clientAccountType ClientAccountType?  // nullable enum
-
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
-
-  // business account fields (for CLIENT with BUSINESS account type)
-  businessName                String?
-  tinNumber                   String?
-  businessCertificateDocument String?   // URL to uploaded document
-  nationalIdDocument          String?   // URL to uploaded document
-
-  // vendor request fields 
-  vendorRequested       Boolean           @default(false)
-  vendorRequestStatus   VendorRequestStatus?
-  vendorRequestedAt     DateTime?
-  vendorApprovedAt      DateTime?
-  vendorApprovedBy      String?          
-  vendorRejectedAt      DateTime?
-  vendorRejectionReason String?
-
-  // supplier-specific fields
-  supplierType          String?           // Individual, Cooperative, Company
-
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
-  deletedAt             DateTime?
+  deletedAt             DateTime?         // Soft delete
 
   // Relations
   site                  Site?             @relation(fields: [siteId], references: [id])
@@ -162,14 +128,10 @@ model User {
   approvedOrders        Order[]           @relation("ApprovedBy")
   paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
   otps                  Otp[]             @relation("UserOtps")
-  vendorRequests        VendorRequest[]   @relation("VendorRequests")
-  approvedVendors       VendorRequest[]   @relation("ApprovedBy")
 
   @@index([email])
   @@index([role])
   @@index([siteId])
-  @@index([clientAccountType])
-  @@index([vendorRequestStatus])
   @@map("users")
 }
 
@@ -191,42 +153,10 @@ model Otp {
   @@map("otps")
 }
 
-model VendorRequest {
-  id                String              @id @default(uuid())
-  userId            String
-  status            VendorRequestStatus @default(PENDING)
-  
-  // request details
-  requestedRole     UserRole            @default(SUPPLIER)
-  businessDescription String?
-  productsOffered   String?             
-  expectedVolume    String?
-  preferredSiteId   String?
-  
-  // Approval/Rejection
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  adminNotes        String?
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-
-  // Relations
-  user              User                @relation("VendorRequests", fields: [userId], references: [id])
-  reviewer          User?               @relation("ApprovedBy", fields: [reviewedBy], references: [id])
-  preferredSite     Site?               @relation(fields: [preferredSiteId], references: [id])
-
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("vendor_requests")
-}
-
 
 model Site {
   id         String      @id @default(uuid())
-  name       String      @unique
+  name       String
   location   String
   managerId  String?     @unique
   createdAt  DateTime    @default(now())
@@ -244,7 +174,6 @@ model Site {
   orders     Order[]
   invoices   Invoice[]
   rentals    Rental[]
-  vendorRequests VendorRequest[]
 
   @@index([managerId])
   @@map("sites")

@@ -1,17 +1,5 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Delete,
-  Body,
-  Post,
-  UseGuards,
-  UseInterceptors,
-  UploadedFiles,
-} from '@nestjs/common';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { ApiOkResponse, ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { Controller, Get, Param, Patch, Delete, Body, Post, UseGuards } from '@nestjs/common';
+import { ApiOkResponse, ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -32,25 +20,10 @@ export class UsersController {
     summary: 'Register a new user',
     description: 'Public for CLIENTs. Token required for SUPPLIER and SITE_MANAGER roles.',
   })
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'businessCertificateDocument', maxCount: 1 },
-      { name: 'nationalIdDocument', maxCount: 1 },
-    ]),
-  )
-  async register(
-    @Body() dto: CreateUserDto,
-    @UploadedFiles()
-    files: {
-      businessCertificateDocument?: Express.Multer.File[];
-      nationalIdDocument?: Express.Multer.File[];
-    },
-    @CurrentUser() user?: CurrentUserPayload,
-  ) {
+  async register(@Body() dto: CreateUserDto, @CurrentUser() user?: CurrentUserPayload) {
     const creatorId = user?.userId;
 
-    return this.usersService.register(dto, creatorId, files);
+    return this.usersService.register(dto, creatorId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -85,24 +58,12 @@ export class UsersController {
     description: 'User updated successfully',
   })
   @ApiOperation({ summary: 'Update user details' })
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'businessCertificateDocument', maxCount: 1 },
-      { name: 'nationalIdDocument', maxCount: 1 },
-    ]),
-  )
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @UploadedFiles()
-    files: {
-      businessCertificateDocument?: Express.Multer.File[];
-      nationalIdDocument?: Express.Multer.File[];
-    },
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.usersService.update(id, dto, user.userId, files);
+    return this.usersService.update(id, dto, user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
