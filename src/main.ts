@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
@@ -8,6 +8,7 @@ import { json } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -26,7 +27,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: configService.get<string>('CORS_ORIGIN', '*'),
     credentials: true,
   });
 
@@ -49,10 +50,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = configService.get<number>('PORT', 3000);
-  await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+  // Railway Port Binding
+  // Railway injects a dynamic PORT; we must listen on 0.0.0.0
+  const port = process.env.PORT || configService.get<number>('PORT') || 3000;
+
+  await app.listen(port, '0.0.0.0');
+
+  logger.log(`Application is running on: http://localhost:${port}/api/v1`);
+  logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();
