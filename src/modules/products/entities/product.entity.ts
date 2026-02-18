@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductStatus } from '@prisma/client';
+import { ProductCategory, ProductStatus } from '@prisma/client';
 
 export class ProductEntity {
   @ApiProperty({
@@ -10,8 +10,8 @@ export class ProductEntity {
   @ApiProperty({ example: 'Fresh Tomatoes' })
   name: string;
 
-  @ApiProperty({ example: 'Vegetables', nullable: true })
-  category: string | null;
+  @ApiProperty({ enum: ProductCategory, example: 'VEGETABLES' })
+  category: ProductCategory;
 
   @ApiProperty({ example: 25.5, description: 'Current stock weight' })
   quantityKg: number;

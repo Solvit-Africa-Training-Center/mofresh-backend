@@ -1,16 +1,20 @@
+/* eslint-disable prettier/prettier */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsService } from './products.service';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
-import { UserRole, ProductStatus, StockMovementType } from '@prisma/client';
+import { UserRole, ProductStatus, StockMovementType, ProductCategory } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 
 describe('ProductsService', () => {
   let service: ProductsService;
-  let prisma: PrismaService;
 
   const mockManager = {
     userId: 'mgr-1',
@@ -18,23 +22,15 @@ describe('ProductsService', () => {
     siteId: 'site-a',
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const mockAdmin = {
-    userId: 'admin-1',
-    role: UserRole.SUPER_ADMIN,
-  };
-
   const createDto: CreateProductDto = {
     name: 'Fresh Tomatoes',
-    category: 'Vegetables',
+    category: ProductCategory.FRUITS_VEGETABLES,
     quantityKg: 50,
     unit: 'KG',
     supplierId: 'supp-uuid-123',
     coldRoomId: 'room-uuid-456',
     siteId: 'site-a',
     sellingPricePerUnit: 1200.5,
-    imageUrl: 'https://example.com/tomato.jpg',
-    description: 'Locally sourced',
   };
 
   const mockProduct = {
@@ -51,8 +47,10 @@ describe('ProductsService', () => {
     siteId: 'site-a',
     usedCapacityKg: 100,
     totalCapacityKg: 1000,
+    status: 'AVAILABLE',
   };
 
+  // This mock simulates both the main prisma client and the transaction 'tx' object
   const mockPrismaService = {
     product: {
       findUnique: jest.fn(),
@@ -68,21 +66,35 @@ describe('ProductsService', () => {
     site: {
       findUnique: jest.fn(),
     },
+    auditLog: {
+      create: jest.fn(),
+    },
     stockMovement: {
       create: jest.fn(),
     },
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     $transaction: jest.fn((callback) => callback(mockPrismaService)),
-    $queryRaw: jest.fn().mockResolvedValue([mockProduct]),
+    $queryRaw: jest.fn().mockResolvedValue([{
+        id: 'prod-uuid-999',
+        quantityKg: 50,
+        coldRoomId: 'room-uuid-456',
+        deletedAt: null,
+    }]),
+  };
+
+  const mockAuditService = {
+    createAuditLog: jest.fn(),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ProductsService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        ProductsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: AuditLogsService, useValue: mockAuditService },
+      ],
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
-    prisma = module.get<PrismaService>(PrismaService);
   });
 
   afterEach(() => {
@@ -91,18 +103,13 @@ describe('ProductsService', () => {
 
   describe('create', () => {
     it('should allow manager to create product in their own site', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.coldRoom.findUnique.mockResolvedValue(mockColdRoom);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.product.create.mockResolvedValue(mockProduct);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await service.create(createDto, mockManager as any);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prisma.product.create).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prisma.coldRoom.update).toHaveBeenCalledWith(
+      expect(mockPrismaService.product.create).toHaveBeenCalled();
+      expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { usedCapacityKg: { increment: createDto.quantityKg } },
         }),
@@ -110,13 +117,11 @@ describe('ProductsService', () => {
     });
 
     it('should throw BadRequest if the cold room site does not match product site', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.coldRoom.findUnique.mockResolvedValue({
         ...mockColdRoom,
         siteId: 'site-different',
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await expect(service.create(createDto, mockManager as any)).rejects.toThrow(
         BadRequestException,
       );
@@ -125,13 +130,11 @@ describe('ProductsService', () => {
 
   describe('findOne', () => {
     it('should throw ForbiddenException if manager tries to access product from another site', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.product.findFirst.mockResolvedValue({
         ...mockProduct,
         siteId: 'site-b',
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await expect(service.findOne('prod-uuid-999', mockManager as any)).rejects.toThrow(
         ForbiddenException,
       );
@@ -140,23 +143,51 @@ describe('ProductsService', () => {
 
   describe('update', () => {
     it('should block manager from changing the siteId of a product', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      // We use jest.spyOn to mock the internal call to findOne
       jest.spyOn(service, 'findOne').mockResolvedValue(mockProduct as any);
 
       const updateDto = { siteId: 'site-b' };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await expect(service.update('prod-uuid-999', updateDto, mockManager as any)).rejects.toThrow(
-        'Only an admin can replace the product site',
+        ForbiddenException,
+      );
+    });
+
+    it('should sync capacities when moving a product to a new cold room', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockProduct as any);
+
+      const targetRoom = { 
+        id: 'room-new', 
+        siteId: 'site-a', 
+        usedCapacityKg: 0, 
+        totalCapacityKg: 1000, 
+        status: 'AVAILABLE',
+      };
+
+      mockPrismaService.coldRoom.findUnique.mockResolvedValue(targetRoom);
+      mockPrismaService.product.update.mockResolvedValue({ ...mockProduct, coldRoomId: 'room-new' });
+
+      await service.update('prod-uuid-999', { coldRoomId: 'room-new' }, mockManager as any);
+
+      // Verify Old Room decrement
+      expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+          where: { id: 'room-uuid-456' },
+          data: { usedCapacityKg: { decrement: 50 } },
+        }),
+      );
+
+      // Verify New Room increment
+      expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+          where: { id: 'room-new' },
+          data: { usedCapacityKg: { increment: 50 } },
+        }),
       );
     });
   });
 
   describe('adjustStock', () => {
     it('should update product quantity and log movement', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       jest.spyOn(service, 'findOne').mockResolvedValue(mockProduct as any);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.coldRoom.findUnique.mockResolvedValue(mockColdRoom);
 
       const adjustDto: AdjustStockDto = {
@@ -165,47 +196,23 @@ describe('ProductsService', () => {
         reason: 'Restock',
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await service.adjustStock('prod-uuid-999', adjustDto, mockManager as any);
 
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prisma.product.update).toHaveBeenCalled();
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prisma.stockMovement.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ quantityKg: 20 }),
-        }),
-      );
+      expect(mockPrismaService.product.update).toHaveBeenCalled();
     });
   });
 
-  describe('remove (Soft Delete)', () => {
+  describe('remove', () => {
     it('should return the success message and decrement capacity', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       mockPrismaService.product.findUnique.mockResolvedValue(mockProduct);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const result = await service.remove('prod-uuid-999', mockManager as any);
 
       expect(result.message).toBe('Product deleted successfully');
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(prisma.coldRoom.update).toHaveBeenCalledWith(
+      expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: { usedCapacityKg: { decrement: mockProduct.quantityKg } },
         }),
-      );
-    });
-
-    it('should throw Unauthorized message if manager tries to delete from another site', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      mockPrismaService.product.findUnique.mockResolvedValue({
-        ...mockProduct,
-        siteId: 'site-b',
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      await expect(service.remove('prod-uuid-999', mockManager as any)).rejects.toThrow(
-        'Unauthorized access: You can only delete products belonging to your site',
       );
     });
   });

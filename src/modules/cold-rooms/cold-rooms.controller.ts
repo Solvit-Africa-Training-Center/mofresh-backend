@@ -51,6 +51,14 @@ export class ColdRoomsController {
     return this.coldRoomService.findAll(user, siteId);
   }
 
+  @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({ summary: 'Get details for a specific cold room' })
+  @ApiOkResponse({ type: ColdRoomEntity })
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.coldRoomService.findOne(id, user);
+  }
+
   @Get(':id/occupancy')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get real-time space availability' })
@@ -78,6 +86,6 @@ export class ColdRoomsController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Archive/Soft-delete a cold room' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.coldRoomService.remove(id, user);
+    return this.coldRoomService.remove('coldRoom', id, user);
   }
 }

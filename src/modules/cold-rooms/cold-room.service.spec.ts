@@ -180,7 +180,7 @@ describe('ColdRoomService', () => {
       it('should perform a soft delete if manager owns the site', async () => {
         mockPrismaService.coldRoom.findUnique.mockResolvedValue(mockRoom);
 
-        const result = await service.remove('room-123', mockManager as any);
+        const result = await service.remove('coldRoom', 'room-123', mockManager as any);
 
         expect(result.message).toBe('Cold room deleted successfully');
         expect(prisma.coldRoom.update).toHaveBeenCalledWith(
@@ -197,7 +197,7 @@ describe('ColdRoomService', () => {
           siteId: 'any-site',
         });
 
-        await service.remove('room-123', mockAdmin as any);
+        await service.remove('coldRoom', 'room-123', mockAdmin as any);
         expect(prisma.coldRoom.update).toHaveBeenCalled();
       });
     });

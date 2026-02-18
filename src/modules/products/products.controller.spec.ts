@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
-import { UserRole, StockMovementType } from '@prisma/client';
+import { UserRole, ProductCategory, StockMovementType } from '@prisma/client';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 
 describe('ProductsController', () => {
@@ -12,25 +13,24 @@ describe('ProductsController', () => {
   const mockUser = {
     userId: 'user-uuid-123',
     role: UserRole.SITE_MANAGER,
-    siteId: 'site-uuid-456',
+    siteId: 'site-a',
   };
 
-  const mockProductResponse = {
-    id: 'prod-uuid-789',
-    name: 'Yellow Passion Fruit',
-    siteId: 'site-uuid-456',
+  const mockProduct = {
+    id: 'prod-uuid-999',
+    name: 'Organic Carrots',
+    category: ProductCategory.FRUITS_VEGETABLES,
     quantityKg: 100,
+    siteId: 'site-a',
   };
 
   const mockProductsService = {
-    create: jest.fn().mockResolvedValue(mockProductResponse),
-    findAll: jest.fn().mockResolvedValue([mockProductResponse]),
-    findOne: jest.fn().mockResolvedValue(mockProductResponse),
-    update: jest.fn().mockResolvedValue(mockProductResponse),
-    adjustStock: jest.fn().mockResolvedValue(mockProductResponse),
-    remove: jest.fn().mockResolvedValue({
-      message: 'Product deleted successfully',
-    }),
+    create: jest.fn(),
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    update: jest.fn(),
+    adjustStock: jest.fn(),
+    remove: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -48,69 +48,108 @@ describe('ProductsController', () => {
     service = module.get<ProductsService>(ProductsService);
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('create()', () => {
-    it('should call service.create with dto and user', async () => {
+  describe('create', () => {
+    it('should call service.create with dto and user context', async () => {
       const dto: CreateProductDto = {
-        name: 'Passion Fruit',
-        quantityKg: 100,
+        name: 'Organic Carrots',
+        category: ProductCategory.FRUITS_VEGETABLES,
+        quantityKg: 50,
         unit: 'KG',
         supplierId: 'supp-1',
         coldRoomId: 'room-1',
         siteId: 'site-a',
-        sellingPricePerUnit: 500,
+        sellingPricePerUnit: 15.5,
       };
+      mockProductsService.create.mockResolvedValue(mockProduct);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const result = await controller.create(dto, mockUser as any);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(service.create).toHaveBeenCalledWith(dto, mockUser);
-      expect(result).toEqual(mockProductResponse);
+      expect(result).toEqual(mockProduct);
     });
   });
 
-  describe('findAll()', () => {
-    it('should pass siteId query to the service', async () => {
-      const siteId = 'site-query-id';
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      await controller.findAll(mockUser as any, siteId);
-
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.findAll).toHaveBeenCalledWith(mockUser, siteId);
-    });
-  });
-
-  describe('remove()', () => {
-    it('should return the "Product deleted successfully" message from service', async () => {
-      const productId = 'prod-uuid-789';
+  describe('findAll', () => {
+    it('should call service.findAll with query filters and user context', async () => {
+      const siteId = 'site-a';
+      const category = ProductCategory.FRUITS_VEGETABLES;
+      mockProductsService.findAll.mockResolvedValue([mockProduct]);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const result = await controller.remove(productId, mockUser as any);
+      const result = await controller.findAll(mockUser as any, siteId, category);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.remove).toHaveBeenCalledWith(productId, mockUser);
-      expect(result).toEqual({ message: 'Product deleted successfully' });
+      expect(service.findAll).toHaveBeenCalledWith(mockUser, siteId, category);
+      expect(result).toEqual([mockProduct]);
     });
   });
 
-  describe('adjustStock()', () => {
-    it('should call service.adjustStock with correct params', async () => {
-      const productId = 'prod-uuid-789';
+  describe('findOne', () => {
+    it('should call service.findOne with id and user context', async () => {
+      const id = 'prod-uuid-999';
+      mockProductsService.findOne.mockResolvedValue(mockProduct);
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const result = await controller.findOne(id, mockUser as any);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.findOne).toHaveBeenCalledWith(id, mockUser);
+      expect(result).toEqual(mockProduct);
+    });
+  });
+
+  describe('update', () => {
+    it('should call service.update with id, dto, and user context', async () => {
+      const id = 'prod-uuid-999';
+      const dto: UpdateProductDto = { name: 'Premium Carrots' };
+      mockProductsService.update.mockResolvedValue({ ...mockProduct, ...dto });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const result = await controller.update(id, dto, mockUser as any);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.update).toHaveBeenCalledWith(id, dto, mockUser);
+      expect(result.name).toBe('Premium Carrots');
+    });
+  });
+
+  describe('adjustStock', () => {
+    it('should call service.adjustStock for atomic stock movements', async () => {
+      const id = 'prod-uuid-999';
       const dto: AdjustStockDto = {
         quantityKg: 20,
         movementType: StockMovementType.IN,
-        reason: 'Restocking',
+        reason: 'Restock from Supplier',
       };
+      mockProductsService.adjustStock.mockResolvedValue(mockProduct);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      await controller.adjustStock(productId, dto, mockUser as any);
+      const result = await controller.adjustStock(id, dto, mockUser as any);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.adjustStock).toHaveBeenCalledWith(productId, dto, mockUser);
+      expect(service.adjustStock).toHaveBeenCalledWith(id, dto, mockUser);
+      expect(result).toEqual(mockProduct);
+    });
+  });
+
+  describe('remove', () => {
+    it('should call service.remove and return success response', async () => {
+      const id = 'prod-uuid-999';
+      const response = { message: 'Product deleted successfully' };
+      mockProductsService.remove.mockResolvedValue(response);
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      const result = await controller.remove(id, mockUser as any);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(service.remove).toHaveBeenCalledWith(id, mockUser);
+      expect(result).toEqual(response);
     });
   });
 });

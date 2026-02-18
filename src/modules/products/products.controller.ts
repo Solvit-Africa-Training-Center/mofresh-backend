@@ -11,7 +11,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { UserRole, ProductCategory } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { ProductEntity } from './entities/product.entity';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -31,6 +32,7 @@ export class ProductsController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Register a new agricultural product' })
+  @ApiResponse({ status: 201, type: ProductEntity })
   async create(@Body() dto: CreateProductDto, @CurrentUser() user: CurrentUserPayload) {
     return this.productsService.create(dto, user);
   }
@@ -38,8 +40,13 @@ export class ProductsController {
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'List all products with site-specific filtering' })
-  async findAll(@CurrentUser() user: CurrentUserPayload, @Query('siteId') siteId?: string) {
-    return this.productsService.findAll(user, siteId);
+  @ApiResponse({ status: 200, type: [ProductEntity] })
+  async findAll(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('siteId') siteId?: string,
+    @Query('category') category?: ProductCategory,
+  ) {
+    return this.productsService.findAll(user, siteId, category);
   }
 
   @Get(':id')

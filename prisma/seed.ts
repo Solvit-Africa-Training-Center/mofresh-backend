@@ -9,6 +9,7 @@ import {
   AssetStatus,
   ProductStatus,
   TricycleCategory,
+  ProductCategory,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -395,7 +396,7 @@ async function main() {
   const productsData = [
     {
       name: 'Fresh Milk',
-      category: 'Dairy',
+      category: ProductCategory.DAIRY,
       quantityKg: 500,
       unit: 'Liters',
       supplierId: supplier1.id,
@@ -406,7 +407,7 @@ async function main() {
     },
     {
       name: 'Cheese',
-      category: 'Dairy',
+      category: ProductCategory.DAIRY,
       quantityKg: 100,
       unit: 'Kg',
       supplierId: supplier1.id,
@@ -417,7 +418,7 @@ async function main() {
     },
     {
       name: 'Tomatoes',
-      category: 'Vegetables',
+      category: ProductCategory.FRUITS_VEGETABLES,
       quantityKg: 300,
       unit: 'Kg',
       supplierId: supplier2.id,
@@ -428,7 +429,7 @@ async function main() {
     },
     {
       name: 'Beef',
-      category: 'Meat',
+      category: ProductCategory.MEAT,
       quantityKg: 200,
       unit: 'Kg',
       supplierId: supplier2.id,

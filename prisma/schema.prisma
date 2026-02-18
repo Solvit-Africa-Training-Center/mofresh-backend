@@ -85,6 +85,16 @@ enum AssetType {
   COLD_BOX
   COLD_PLATE
   TRICYCLE
+  ColdRoom
+}
+
+enum ProductCategory{
+  FRUITS_VEGETABLES
+  FRESH_FRUITS
+  MEAT
+  DAIRY
+  MEDECINE
+  PHARMACEUTICAL
 }
 
 enum TricycleCategory {
@@ -259,6 +269,8 @@ model ColdRoom {
   temperatureMin  Float
   temperatureMax  Float?
   powerType       PowerType
+  status          AssetStatus      @default(AVAILABLE)
+  imageUrl        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -267,6 +279,7 @@ model ColdRoom {
   site            Site             @relation(fields: [siteId], references: [id])
   products        Product[]
   stockMovements  StockMovement[]
+  rentals         Rental[]
 
   @@index([siteId])
   @@map("cold_rooms")
@@ -341,7 +354,7 @@ model Tricycle {
 model Product {
   id                  String           @id @default(uuid())
   name                String
-  category            String?
+  category            ProductCategory
   quantityKg          Float
   unit                String
   supplierId          String
@@ -520,6 +533,7 @@ model Rental {
   coldBoxId       String?
   coldPlateId     String?
   tricycleId      String?
+  coldRoomId      String?
   status          RentalStatus @default(REQUESTED)
   rentalStartDate DateTime
   rentalEndDate   DateTime
@@ -537,6 +551,7 @@ model Rental {
   coldBox         ColdBox?     @relation(fields: [coldBoxId], references: [id])
   coldPlate       ColdPlate?   @relation(fields: [coldPlateId], references: [id])
   tricycle        Tricycle?    @relation(fields: [tricycleId], references: [id])
+  coldRoom        ColdRoom?    @relation(fields: [coldRoomId], references: [id])
   invoice         Invoice?
 
   @@index([clientId])
@@ -545,6 +560,7 @@ model Rental {
   @@index([coldBoxId])
   @@index([coldPlateId])
   @@index([tricycleId])
+  @@index([coldRoomId])
   @@map("rentals")
 }
 

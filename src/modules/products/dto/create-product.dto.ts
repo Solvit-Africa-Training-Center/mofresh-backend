@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min, IsEnum } from 'class-validator';
+import { ProductCategory } from '@prisma/client';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Fresh Tomatoes' })
@@ -7,10 +8,10 @@ export class CreateProductDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'Vegetables', nullable: true })
-  @IsString()
-  @IsOptional()
-  category?: string;
+  @ApiProperty({ enum: ProductCategory, example: 'VEGETABLES' })
+  @IsEnum(ProductCategory)
+  @IsNotEmpty({ message: 'Category must be provided' })
+  category: ProductCategory;
 
   @ApiProperty({ example: 500 })
   @IsNumber()
