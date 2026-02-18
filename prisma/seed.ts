@@ -9,8 +9,6 @@ import {
   AssetStatus,
   ProductStatus,
   TricycleCategory,
-  RentalStatus,
-  AssetType,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -85,19 +83,6 @@ async function main() {
       isActive: true,
     },
   });
-  const superAdmin4 = await prisma.user.upsert({
-    where: { email: 'boitenge6@gmail.com' },
-    update: {},
-    create: {
-      email: 'boitenge6@gmail.com',
-      password: hashedPassword,
-      firstName: 'Munezero',
-      lastName: 'Mas',
-      phone: '+250725889619',
-      role: UserRole.SUPER_ADMIN,
-      isActive: true,
-    },
-  });
 
   // 2. Create 3 Sites
   console.log('🏢 Creating sites...');
@@ -161,20 +146,6 @@ async function main() {
       phone: '+250788333333',
       role: UserRole.SITE_MANAGER,
       siteId: site3.id,
-      isActive: true,
-    },
-  });
-  const manager4 = await prisma.user.upsert({
-    where: { email: 'boitenge311@gmail.com' },
-    update: { siteId: site3.id },
-    create: {
-      email: 'boitenge311@gmail.com',
-      password: hashedPassword,
-      firstName: 'boitenge',
-      lastName: 'site manager',
-      phone: '+25072433537',
-      role: UserRole.SITE_MANAGER,
-      siteId: site2.id,
       isActive: true,
     },
   });
@@ -275,20 +246,6 @@ async function main() {
       firstName: 'Sarah',
       lastName: 'Uwimana',
       phone: '+250788777777',
-      role: UserRole.CLIENT,
-      siteId: site2.id,
-      isActive: true,
-    },
-  });
-  const client3 = await prisma.user.upsert({
-    where: { email: 'jeromeboitenge@gmail.com' },
-    update: { siteId: site2.id },
-    create: {
-      email: 'jeromeboitenge@gmail.com',
-      password: hashedPassword,
-      firstName: 'Boitenge',
-      lastName: 'jerome',
-      phone: '+250782433539',
       role: UserRole.CLIENT,
       siteId: site2.id,
       isActive: true,
@@ -501,156 +458,6 @@ async function main() {
     where: { id: coldRoom2.id },
     data: { usedCapacityKg: 500 }, // 300 + 200
   });
-
-  // 11. Create Rentals
-  console.log('📋 Creating Rentals...');
-
-  // Get the created assets for rentals
-  const coldBox1 = await prisma.coldBox.findUnique({
-    where: { identificationNumber: 'CB-KGL-001' },
-  });
-  const coldBox2 = await prisma.coldBox.findUnique({
-    where: { identificationNumber: 'CB-KGL-002' },
-  });
-  const coldPlate1 = await prisma.coldPlate.findUnique({
-    where: { identificationNumber: 'CP-KGL-001' },
-  });
-  const tricycle1 = await prisma.tricycle.findUnique({ where: { plateNumber: 'TC-KGL-001' } });
-  const tricycle2 = await prisma.tricycle.findUnique({ where: { plateNumber: 'TC-MUS-001' } });
-
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const nextWeek = new Date(now);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  const lastWeek = new Date(now);
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const rentalsData = [
-    // REQUESTED rentals (pending approval)
-    {
-      clientId: client1.id,
-      siteId: site1.id,
-      assetType: AssetType.COLD_BOX,
-      coldBoxId: coldBox1?.id,
-      status: RentalStatus.REQUESTED,
-      rentalStartDate: tomorrow,
-      rentalEndDate: nextWeek,
-      estimatedFee: 50000,
-    },
-    {
-      clientId: client2.id,
-      siteId: site2.id,
-      assetType: AssetType.TRICYCLE,
-      tricycleId: tricycle2?.id,
-      status: RentalStatus.REQUESTED,
-      rentalStartDate: tomorrow,
-      rentalEndDate: nextWeek,
-      estimatedFee: 75000,
-    },
-    // APPROVED rental (invoice generated, waiting for payment)
-    {
-      clientId: client1.id,
-      siteId: site1.id,
-      assetType: AssetType.COLD_PLATE,
-      coldPlateId: coldPlate1?.id,
-      status: RentalStatus.APPROVED,
-      rentalStartDate: tomorrow,
-      rentalEndDate: nextWeek,
-      estimatedFee: 40000,
-      approvedAt: now,
-    },
-    // ACTIVE rentals (currently in use)
-    {
-      clientId: client2.id,
-      siteId: site2.id,
-      assetType: AssetType.COLD_BOX,
-      coldBoxId: coldBox2?.id,
-      status: RentalStatus.ACTIVE,
-      rentalStartDate: lastWeek,
-      rentalEndDate: nextWeek,
-      estimatedFee: 60000,
-      approvedAt: lastWeek,
-    },
-    {
-      clientId: client1.id,
-      siteId: site1.id,
-      assetType: AssetType.TRICYCLE,
-      tricycleId: tricycle1?.id,
-      status: RentalStatus.ACTIVE,
-      rentalStartDate: yesterday,
-      rentalEndDate: nextWeek,
-      estimatedFee: 80000,
-      approvedAt: yesterday,
-    },
-    // COMPLETED rentals (historical data)
-    {
-      clientId: client1.id,
-      siteId: site1.id,
-      assetType: AssetType.COLD_BOX,
-      coldBoxId: coldBox1?.id,
-      status: RentalStatus.COMPLETED,
-      rentalStartDate: new Date('2026-01-01'),
-      rentalEndDate: new Date('2026-01-07'),
-      estimatedFee: 50000,
-      actualFee: 50000,
-      approvedAt: new Date('2026-01-01'),
-      completedAt: new Date('2026-01-07'),
-    },
-    {
-      clientId: client2.id,
-      siteId: site2.id,
-      assetType: AssetType.TRICYCLE,
-      tricycleId: tricycle2?.id,
-      status: RentalStatus.COMPLETED,
-      rentalStartDate: new Date('2026-01-15'),
-      rentalEndDate: new Date('2026-01-22'),
-      estimatedFee: 70000,
-      actualFee: 70000,
-      approvedAt: new Date('2026-01-15'),
-      completedAt: new Date('2026-01-22'),
-    },
-    // CANCELLED rental
-    {
-      clientId: client1.id,
-      siteId: site1.id,
-      assetType: AssetType.COLD_PLATE,
-      coldPlateId: coldPlate1?.id,
-      status: RentalStatus.CANCELLED,
-      rentalStartDate: tomorrow,
-      rentalEndDate: nextWeek,
-      estimatedFee: 45000,
-    },
-  ];
-
-  for (const data of rentalsData) {
-    const existing = await prisma.rental.findFirst({
-      where: {
-        clientId: data.clientId,
-        assetType: data.assetType,
-        rentalStartDate: data.rentalStartDate,
-      },
-    });
-    if (!existing) {
-      await prisma.rental.create({ data });
-    }
-  }
-
-  // Update asset statuses for ACTIVE rentals
-  if (coldBox2) {
-    await prisma.coldBox.update({
-      where: { id: coldBox2.id },
-      data: { status: AssetStatus.RENTED },
-    });
-  }
-  if (tricycle1) {
-    await prisma.tricycle.update({
-      where: { id: tricycle1.id },
-      data: { status: AssetStatus.RENTED },
-    });
-  }
 
   console.log('✅ Database seeding completed successfully!');
   console.log('\n📋 Login Credentials:');

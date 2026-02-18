@@ -16,6 +16,7 @@ enum UserRole {
   CLIENT
 }
 
+
 enum VendorRequestStatus {
   PENDING
   APPROVED
@@ -112,58 +113,58 @@ enum ClientAccountType {
 // ===== MODELS =====
 
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  password String // bcrypt hashed
+  id                    String            @id @default(uuid())
+  email                 String            @unique
+  password              String            // bcrypt hashed
 
-  firstName String?
-  lastName  String?
-
+  firstName             String?
+  lastName              String?
+  
   // common fields
-  phone String @unique
+  phone                 String            @unique
 
-  refreshToken      String?
-  role              UserRole
-  clientAccountType ClientAccountType? // nullable enum
+  refreshToken          String?          
+  role                  UserRole
+  clientAccountType ClientAccountType?  // nullable enum
 
-  siteId   String? // NULL for SUPER_ADMIN
-  isActive Boolean @default(true)
+  siteId                String?           // NULL for SUPER_ADMIN
+  isActive              Boolean           @default(true)
 
   // business account fields (for CLIENT with BUSINESS account type)
   businessName                String?
   tinNumber                   String?
-  businessCertificateDocument String? // URL to uploaded document
-  nationalIdDocument          String? // URL to uploaded document
+  businessCertificateDocument String?   // URL to uploaded document
+  nationalIdDocument          String?   // URL to uploaded document
 
   // vendor request fields 
-  vendorRequested       Boolean              @default(false)
+  vendorRequested       Boolean           @default(false)
   vendorRequestStatus   VendorRequestStatus?
   vendorRequestedAt     DateTime?
   vendorApprovedAt      DateTime?
-  vendorApprovedBy      String?
+  vendorApprovedBy      String?          
   vendorRejectedAt      DateTime?
   vendorRejectionReason String?
 
   // supplier-specific fields
-  supplierType String? // Individual, Cooperative, Company
+  supplierType          String?           // Individual, Cooperative, Company
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  deletedAt             DateTime?
 
   // Relations
-  site                  Site?           @relation(fields: [siteId], references: [id])
-  managedSite           Site?           @relation("SiteManager")
-  suppliedProducts      Product[]       @relation("SupplierProducts")
-  orders                Order[]         @relation("ClientOrders")
-  rentals               Rental[]        @relation("ClientRentals")
+  site                  Site?             @relation(fields: [siteId], references: [id])
+  managedSite           Site?             @relation("SiteManager")
+  suppliedProducts      Product[]         @relation("SupplierProducts")
+  orders                Order[]           @relation("ClientOrders")
+  rentals               Rental[]          @relation("ClientRentals")
   auditLogs             AuditLog[]
-  createdStockMovements StockMovement[] @relation("CreatedBy")
-  approvedOrders        Order[]         @relation("ApprovedBy")
-  paymentsMarkedBy      Payment[]       @relation("MarkedPaidBy")
-  otps                  Otp[]           @relation("UserOtps")
-  vendorRequests        VendorRequest[] @relation("VendorRequests")
-  approvedVendors       VendorRequest[] @relation("ApprovedBy")
+  createdStockMovements StockMovement[]   @relation("CreatedBy")
+  approvedOrders        Order[]           @relation("ApprovedBy")
+  paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
+  otps                  Otp[]             @relation("UserOtps")
+  vendorRequests        VendorRequest[]   @relation("VendorRequests")
+  approvedVendors       VendorRequest[]   @relation("ApprovedBy")
 
   @@index([email])
   @@index([role])
@@ -173,48 +174,49 @@ model User {
   @@map("users")
 }
 
+
 model Otp {
   id        String   @id @default(uuid())
-  email     String
-  code      String
-  userId    String? // Optional: link to existing user
+  email     String  
+  code      String   
+  userId    String?  // Optional: link to existing user
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   // Relations
-  user User? @relation("UserOtps", fields: [userId], references: [id])
+  user      User?    @relation("UserOtps", fields: [userId], references: [id])
 
-  @@unique([email, code])
   @@index([email])
   @@index([userId])
+  @@unique([email, code])
   @@map("otps")
 }
 
 model VendorRequest {
-  id     String              @id @default(uuid())
-  userId String
-  status VendorRequestStatus @default(PENDING)
-
+  id                String              @id @default(uuid())
+  userId            String
+  status            VendorRequestStatus @default(PENDING)
+  
   // request details
-  requestedRole       UserRole @default(SUPPLIER)
+  requestedRole     UserRole            @default(SUPPLIER)
   businessDescription String?
-  productsOffered     String?
-  expectedVolume      String?
-  preferredSiteId     String?
-
+  productsOffered   String?             
+  expectedVolume    String?
+  preferredSiteId   String?
+  
   // Approval/Rejection
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  rejectionReason String?
-  adminNotes      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  rejectionReason   String?
+  adminNotes        String?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   // Relations
-  user          User  @relation("VendorRequests", fields: [userId], references: [id])
-  reviewer      User? @relation("ApprovedBy", fields: [reviewedBy], references: [id])
-  preferredSite Site? @relation(fields: [preferredSiteId], references: [id])
+  user              User                @relation("VendorRequests", fields: [userId], references: [id])
+  reviewer          User?               @relation("ApprovedBy", fields: [reviewedBy], references: [id])
+  preferredSite     Site?               @relation(fields: [preferredSiteId], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -222,26 +224,27 @@ model VendorRequest {
   @@map("vendor_requests")
 }
 
+
 model Site {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  location  String
-  managerId String?   @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id         String      @id @default(uuid())
+  name       String      @unique
+  location   String
+  managerId  String?     @unique
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  deletedAt  DateTime?
 
   // Relations
-  manager        User?           @relation("SiteManager", fields: [managerId], references: [id])
-  users          User[]
-  coldRooms      ColdRoom[]
-  coldBoxes      ColdBox[]
-  coldPlates     ColdPlate[]
-  tricycles      Tricycle[]
-  products       Product[]
-  orders         Order[]
-  invoices       Invoice[]
-  rentals        Rental[]
+  manager    User?       @relation("SiteManager", fields: [managerId], references: [id])
+  users      User[]
+  coldRooms  ColdRoom[]
+  coldBoxes  ColdBox[]
+  coldPlates ColdPlate[]
+  tricycles  Tricycle[]
+  products   Product[]
+  orders     Order[]
+  invoices   Invoice[]
+  rentals    Rental[]
   vendorRequests VendorRequest[]
 
   @@index([managerId])
@@ -249,43 +252,44 @@ model Site {
 }
 
 model ColdRoom {
-  id              String    @id @default(uuid())
+  id              String           @id @default(uuid())
   name            String
   siteId          String
   totalCapacityKg Float
-  usedCapacityKg  Float     @default(0)
+  usedCapacityKg  Float            @default(0)
   temperatureMin  Float
   temperatureMax  Float?
   powerType       PowerType
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
 
   // Relations
-  site           Site            @relation(fields: [siteId], references: [id])
-  products       Product[]
-  stockMovements StockMovement[]
-  rentals        Rental[]
+  site            Site             @relation(fields: [siteId], references: [id])
+  products        Product[]
+  stockMovements  StockMovement[]
+  rentals         Rental[]
 
   @@index([siteId])
   @@map("cold_rooms")
 }
 
 model ColdBox {
-  id                   String      @id @default(uuid())
-  identificationNumber String      @unique
+  id                   String       @id @default(uuid())
+  identificationNumber String       @unique
   sizeOrCapacity       String
   siteId               String
   location             String
-  status               AssetStatus @default(AVAILABLE)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  status               AssetStatus  @default(AVAILABLE)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
   imageUrl             String?
+ 
 
   // Relations
-  site    Site     @relation(fields: [siteId], references: [id])
-  rentals Rental[]
+  site                 Site         @relation(fields: [siteId], references: [id])
+  rentals              Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -293,19 +297,20 @@ model ColdBox {
 }
 
 model ColdPlate {
-  id                   String      @id @default(uuid())
-  identificationNumber String      @unique
+  id                   String       @id @default(uuid())
+  identificationNumber String       @unique
   coolingSpecification String
   siteId               String
-  status               AssetStatus @default(AVAILABLE)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  status               AssetStatus  @default(AVAILABLE)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
   imageUrl             String?
+  
 
   // Relations
-  site    Site     @relation(fields: [siteId], references: [id])
-  rentals Rental[]
+  site                 Site         @relation(fields: [siteId], references: [id])
+  rentals              Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -323,10 +328,12 @@ model Tricycle {
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
   imageUrl    String?
+  
+
 
   // Relations
-  site    Site     @relation(fields: [siteId], references: [id])
-  rentals Rental[]
+  site        Site             @relation(fields: [siteId], references: [id])
+  rentals     Rental[]
 
   @@index([siteId])
   @@index([status])
@@ -334,7 +341,7 @@ model Tricycle {
 }
 
 model Product {
-  id                  String        @id @default(uuid())
+  id                  String           @id @default(uuid())
   name                String
   category            String?
   quantityKg          Float
@@ -343,19 +350,19 @@ model Product {
   coldRoomId          String
   sellingPricePerUnit Float
   siteId              String
-  status              ProductStatus @default(IN_STOCK)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  status              ProductStatus    @default(IN_STOCK)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
   imageUrl            String?
   description         String?
 
   // Relations
-  supplier       User            @relation("SupplierProducts", fields: [supplierId], references: [id])
-  coldRoom       ColdRoom        @relation(fields: [coldRoomId], references: [id])
-  site           Site            @relation(fields: [siteId], references: [id])
-  stockMovements StockMovement[]
-  orderItems     OrderItem[]
+  supplier            User             @relation("SupplierProducts", fields: [supplierId], references: [id])
+  coldRoom            ColdRoom         @relation(fields: [coldRoomId], references: [id])
+  site                Site             @relation(fields: [siteId], references: [id])
+  stockMovements      StockMovement[]
+  orderItems          OrderItem[]
 
   @@index([supplierId])
   @@index([coldRoomId])
@@ -365,19 +372,19 @@ model Product {
 }
 
 model StockMovement {
-  id           String            @id @default(uuid())
+  id           String             @id @default(uuid())
   productId    String
   coldRoomId   String
   quantityKg   Float
   movementType StockMovementType
   reason       String
   createdBy    String
-  createdAt    DateTime          @default(now())
+  createdAt    DateTime           @default(now())
 
   // Relations
-  product  Product  @relation(fields: [productId], references: [id])
-  coldRoom ColdRoom @relation(fields: [coldRoomId], references: [id])
-  user     User     @relation("CreatedBy", fields: [createdBy], references: [id])
+  product      Product            @relation(fields: [productId], references: [id])
+  coldRoom     ColdRoom           @relation(fields: [coldRoomId], references: [id])
+  user         User               @relation("CreatedBy", fields: [createdBy], references: [id])
 
   @@index([productId])
   @@index([coldRoomId])
@@ -402,11 +409,11 @@ model Order {
   deletedAt       DateTime?
 
   // Relations
-  client   User        @relation("ClientOrders", fields: [clientId], references: [id])
-  site     Site        @relation(fields: [siteId], references: [id])
-  approver User?       @relation("ApprovedBy", fields: [approvedBy], references: [id])
-  items    OrderItem[]
-  invoice  Invoice?
+  client          User        @relation("ClientOrders", fields: [clientId], references: [id])
+  site            Site        @relation(fields: [siteId], references: [id])
+  approver        User?       @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  items           OrderItem[]
+  invoice         Invoice?
 
   @@index([clientId])
   @@index([siteId])
@@ -425,8 +432,8 @@ model OrderItem {
   createdAt  DateTime @default(now())
 
   // Relations
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
 
   @@index([orderId])
   @@index([productId])
@@ -451,11 +458,11 @@ model Invoice {
   deletedAt     DateTime?
 
   // Relations
-  order    Order?        @relation(fields: [orderId], references: [id])
-  rental   Rental?       @relation(fields: [rentalId], references: [id])
-  site     Site          @relation(fields: [siteId], references: [id])
-  items    InvoiceItem[]
-  payments Payment[]
+  order         Order?        @relation(fields: [orderId], references: [id])
+  rental        Rental?       @relation(fields: [rentalId], references: [id])
+  site          Site          @relation(fields: [siteId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
 
   @@index([invoiceNumber])
   @@index([clientId])
@@ -476,30 +483,30 @@ model InvoiceItem {
   createdAt   DateTime @default(now())
 
   // Relations
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
   @@map("invoice_items")
 }
 
 model Payment {
-  id                   String        @id @default(uuid())
-  invoiceId            String
-  amount               Float
-  paymentMethod        PaymentMethod
-  status               PaymentStatus @default(PENDING)
-  momoTransactionRef   String?       @unique
-  transactionReference String?
-  phoneNumber          String?
-  notes                String?
-  paidAt               DateTime?
-  markedPaidBy         String? // User who manually marked as paid
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  id                     String        @id @default(uuid())
+  invoiceId              String
+  amount                 Float
+  paymentMethod          PaymentMethod
+  status                 PaymentStatus @default(PENDING)
+  momoTransactionRef     String?       @unique
+  transactionReference   String?
+  phoneNumber            String?
+  notes                  String?
+  paidAt                 DateTime?
+  markedPaidBy           String?       // User who manually marked as paid
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   // Relations
-  invoice          Invoice @relation(fields: [invoiceId], references: [id])
-  markedPaidByUser User?   @relation("MarkedPaidBy", fields: [markedPaidBy], references: [id])
+  invoice                Invoice       @relation(fields: [invoiceId], references: [id])
+  markedPaidByUser       User?         @relation("MarkedPaidBy", fields: [markedPaidBy], references: [id])
 
   @@index([invoiceId])
   @@index([status])
@@ -521,7 +528,7 @@ model Rental {
   rentalEndDate      DateTime
   estimatedFee       Float
   actualFee          Float?
-  capacityNeededKg   Float?       // for COLD_ROOM rentals
+  capacityNeededKg   Float?
   approvedAt         DateTime?
   completedAt        DateTime?
   createdAt          DateTime     @default(now())
@@ -529,13 +536,13 @@ model Rental {
   deletedAt          DateTime?
 
   // Relations
-  client    User       @relation("ClientRentals", fields: [clientId], references: [id])
-  site      Site       @relation(fields: [siteId], references: [id])
-  coldBox   ColdBox?   @relation(fields: [coldBoxId], references: [id])
-  coldPlate ColdPlate? @relation(fields: [coldPlateId], references: [id])
-  tricycle  Tricycle?  @relation(fields: [tricycleId], references: [id])
-  coldRoom  ColdRoom?  @relation(fields: [coldRoomId], references: [id])
-  invoice   Invoice?
+  client          User         @relation("ClientRentals", fields: [clientId], references: [id])
+  site            Site         @relation(fields: [siteId], references: [id])
+  coldBox         ColdBox?     @relation(fields: [coldBoxId], references: [id])
+  coldPlate       ColdPlate?   @relation(fields: [coldPlateId], references: [id])
+  tricycle        Tricycle?    @relation(fields: [tricycleId], references: [id])
+  coldRoom        ColdRoom?    @relation(fields: [coldRoomId], references: [id])
+  invoice         Invoice?
 
   @@index([clientId])
   @@index([siteId])
@@ -549,15 +556,15 @@ model Rental {
 
 model AuditLog {
   id         String      @id @default(uuid())
-  entityType String // ORDER, INVOICE, PAYMENT, STOCK_MOVEMENT, etc.
+  entityType String      // ORDER, INVOICE, PAYMENT, STOCK_MOVEMENT, etc.
   entityId   String
   action     AuditAction
   userId     String
-  details    Json? // Flexible JSON for storing relevant data
+  details    Json?       // Flexible JSON for storing relevant data
   timestamp  DateTime    @default(now())
 
   // Relations
-  user User @relation(fields: [userId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
 
   @@index([entityType, entityId])
   @@index([userId])

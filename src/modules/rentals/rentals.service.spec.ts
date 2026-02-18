@@ -152,6 +152,7 @@ describe('RentalsService', () => {
 
     it('should create rental with cold room', async () => {
       const coldRoomDto = {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         assetType: AssetType.COLD_ROOM,
         coldRoomId: 'room-1',
         rentalStartDate: '2026-02-15T10:00:00Z',
@@ -171,6 +172,7 @@ describe('RentalsService', () => {
       });
       mockPrismaService.rental.create.mockResolvedValue({
         ...mockRental,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         assetType: AssetType.COLD_ROOM,
         coldRoomId: 'room-1',
         coldBoxId: null,
@@ -250,6 +252,7 @@ describe('RentalsService', () => {
 
       mockPrismaService.coldRoom.findMany.mockResolvedValue(mockRooms);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const result = await service.getAvailableAssetsByType(AssetType.COLD_ROOM, 'site-1');
 
       expect(result.assetType).toBe(AssetType.COLD_ROOM);

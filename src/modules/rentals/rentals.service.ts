@@ -64,6 +64,7 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     if (coldPlateId) provided.push({ assetType: AssetType.COLD_PLATE, assetId: coldPlateId });
     if (tricycleId) provided.push({ assetType: AssetType.TRICYCLE, assetId: tricycleId });
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     if (coldRoomId) provided.push({ assetType: AssetType.COLD_ROOM, assetId: coldRoomId });
 
     // User must provide exactly one asset ID
