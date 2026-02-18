@@ -199,6 +199,7 @@ describe('OrdersService', () => {
     };
 
     it('should throw error if order not found', async () => {
+      // eslint-disable-next-line @typescript-eslint/require-await
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           ...mockPrismaService,
@@ -207,6 +208,7 @@ describe('OrdersService', () => {
             findFirst: jest.fn().mockResolvedValue(null),
           },
         };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
         return callback(tx);
       });
 
@@ -216,6 +218,7 @@ describe('OrdersService', () => {
     });
 
     it('should throw error if order not in REQUESTED status', async () => {
+      // eslint-disable-next-line @typescript-eslint/require-await
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           ...mockPrismaService,
@@ -227,6 +230,7 @@ describe('OrdersService', () => {
             }),
           },
         };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
         return callback(tx);
       });
 
@@ -641,6 +645,7 @@ describe('OrdersService', () => {
         approvedAt: new Date(),
       };
 
+      // eslint-disable-next-line @typescript-eslint/require-await
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           ...mockPrismaService,
@@ -650,6 +655,7 @@ describe('OrdersService', () => {
             update: jest.fn().mockResolvedValue(updatedOrder),
           },
         };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
         return callback(tx);
       });
 
@@ -694,6 +700,7 @@ describe('OrdersService', () => {
         ],
       };
 
+      // eslint-disable-next-line @typescript-eslint/require-await
       mockPrismaService.$transaction.mockImplementation(async (callback) => {
         const tx = {
           ...mockPrismaService,
@@ -702,6 +709,7 @@ describe('OrdersService', () => {
             findFirst: jest.fn().mockResolvedValue(mockOrder),
           },
         };
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
         return callback(tx);
       });
 

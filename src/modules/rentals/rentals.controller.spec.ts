@@ -301,10 +301,8 @@ describe('RentalsController', () => {
 
   describe('approve', () => {
     const mockResult = {
-      rental: {
-        id: 'rental-1',
-        status: RentalStatus.APPROVED,
-      },
+      id: 'rental-1',
+      status: RentalStatus.APPROVED,
       invoice: {
         id: 'invoice-1',
         invoiceNumber: 'INV-KIGALI-2026-00001',
@@ -324,7 +322,8 @@ describe('RentalsController', () => {
       const result = await controller.approve('rental-1', mockUser);
 
       expect(result).toBeDefined();
-      expect(result.rental.status).toBe(RentalStatus.APPROVED);
+
+      expect(result.status).toBe(RentalStatus.APPROVED);
       expect(result.invoice).toBeDefined();
       expect(mockRentalsService.approveRental).toHaveBeenCalledWith(
         'rental-1',

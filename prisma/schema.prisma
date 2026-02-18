@@ -508,24 +508,25 @@ model Payment {
 }
 
 model Rental {
-  id              String       @id @default(uuid())
-  clientId        String
-  siteId          String
-  assetType       AssetType
-  coldBoxId       String?
-  coldPlateId     String?
-  tricycleId      String?
-  coldRoomId      String?
-  status          RentalStatus @default(REQUESTED)
-  rentalStartDate DateTime
-  rentalEndDate   DateTime
-  estimatedFee    Float
-  actualFee       Float?
-  approvedAt      DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
+  id                 String       @id @default(uuid())
+  clientId           String
+  siteId             String
+  assetType          AssetType
+  coldBoxId          String?
+  coldPlateId        String?
+  tricycleId         String?
+  coldRoomId         String?
+  status             RentalStatus @default(REQUESTED)
+  rentalStartDate    DateTime
+  rentalEndDate      DateTime
+  estimatedFee       Float
+  actualFee          Float?
+  capacityNeededKg   Float?       // for COLD_ROOM rentals
+  approvedAt         DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
 
   // Relations
   client    User       @relation("ClientRentals", fields: [clientId], references: [id])

@@ -39,7 +39,6 @@ describe('Rentals (e2e)', () => {
       if (req.headers['x-mock-user']) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         req.user = JSON.parse(req.headers['x-mock-user'] as string);
-        // Also mock CurrentUser decorator behavior if possible, but usually decorators read req.user
       }
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       next();

@@ -189,4 +189,26 @@ export class RentalsController {
 
     return this.rentalsService.complete(id, siteId, user.userId);
   }
+
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Cancel a rental request (REQUESTED or APPROVED → CANCELLED)' })
+  @ApiParam({ name: 'id', description: 'Rental ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Rental cancelled successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - Cannot cancel ACTIVE or COMPLETED rental',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Can only cancel own rentals' })
+  @ApiResponse({ status: 404, description: 'Rental not found' })
+  async cancel(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      throw new BadRequestException('User must belong to a site');
+    }
+
+    const siteId = user.siteId || ''; // Super admin can use empty, will be filtered in service
+    return this.rentalsService.cancelRental(id, siteId, user.userId, user.role as UserRole);
+  }
 }

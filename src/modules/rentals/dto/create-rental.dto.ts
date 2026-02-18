@@ -81,4 +81,15 @@ export class CreateRentalDto {
   @Min(0)
   @IsNotEmpty()
   estimatedFee: number;
+
+  @ApiProperty({
+    description: 'Capacity needed in Kg (required for COLD_ROOM rentals)',
+    required: false,
+    example: 100.5,
+    minimum: 0.01,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  capacityNeededKg?: number;
 }

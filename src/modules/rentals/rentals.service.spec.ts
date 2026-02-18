@@ -42,6 +42,7 @@ describe('RentalsService', () => {
     coldRoom: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       updateMany: jest.fn(),
       update: jest.fn(),
     },
@@ -156,17 +157,24 @@ describe('RentalsService', () => {
         rentalStartDate: '2026-02-15T10:00:00Z',
         rentalEndDate: '2026-02-20T10:00:00Z',
         estimatedFee: 100000,
+        capacityNeededKg: 50, // Required for COLD_ROOM
       };
 
       mockPrismaService.coldRoom.findFirst.mockResolvedValue({
         id: 'room-1',
         status: AssetStatus.AVAILABLE,
       });
+      mockPrismaService.coldRoom.findUnique.mockResolvedValue({
+        id: 'room-1',
+        totalCapacityKg: 1000,
+        usedCapacityKg: 100,
+      });
       mockPrismaService.rental.create.mockResolvedValue({
         ...mockRental,
         assetType: AssetType.COLD_ROOM,
         coldRoomId: 'room-1',
         coldBoxId: null,
+        capacityNeededKg: 50,
       });
 
       const result = await service.createRental(
@@ -176,7 +184,7 @@ describe('RentalsService', () => {
       );
 
       expect(result).toBeDefined();
-      expect(mockPrismaService.coldRoom.findFirst).toHaveBeenCalled();
+      expect(mockPrismaService.coldRoom.findUnique).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if asset not available', async () => {
@@ -271,18 +279,24 @@ describe('RentalsService', () => {
     };
 
     it('should approve rental and generate invoice', async () => {
-      // Mock for checkAvailability (uses main Prisma service, not transaction)
-      mockPrismaService.coldBox.findFirst.mockResolvedValue({ status: AssetStatus.AVAILABLE });
-
       const mockTx = {
         rental: {
-          findFirst: jest.fn().mockResolvedValue(mockRental),
+          findFirst: jest.fn().mockResolvedValue({
+            ...mockRental,
+            rentalStartDate: new Date(),
+            rentalEndDate: new Date(Date.now() + 86400000),
+          }),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           findUnique: jest.fn().mockResolvedValue({
             ...mockRental,
             status: RentalStatus.APPROVED,
+            invoice: { id: 'invoice-1' },
           }),
+          findMany: jest.fn().mockResolvedValue([]), // For date overlap check
         },
+        $queryRawUnsafe: jest
+          .fn()
+          .mockResolvedValue([{ id: 'box-1', status: AssetStatus.AVAILABLE }]),
         auditLog: {
           create: jest.fn(),
         },
@@ -297,7 +311,7 @@ describe('RentalsService', () => {
 
       const result = await service.approveRental('rental-1', 'site-1', 'manager-1');
 
-      expect(result.rental).toBeDefined();
+      expect(result).toBeDefined();
       expect(result.invoice).toBeDefined();
       expect(mockTx.rental.updateMany).toHaveBeenCalled();
       expect(mockInvoicesService.generateRentalInvoice).toHaveBeenCalled();
@@ -349,12 +363,13 @@ describe('RentalsService', () => {
     };
 
     it('should activate rental when invoice is paid', async () => {
-      // Mock for checkAvailability (uses main Prisma service, not transaction)
-      mockPrismaService.coldBox.findFirst.mockResolvedValue({ status: AssetStatus.AVAILABLE });
-
       const mockTx = {
         rental: {
-          findFirst: jest.fn().mockResolvedValue(mockRental),
+          findFirst: jest.fn().mockResolvedValue({
+            ...mockRental,
+            rentalStartDate: new Date(),
+            rentalEndDate: new Date(Date.now() + 86400000),
+          }),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
           findUnique: jest.fn().mockResolvedValue({
             ...mockRental,
@@ -373,6 +388,9 @@ describe('RentalsService', () => {
         auditLog: {
           create: jest.fn(),
         },
+        $queryRawUnsafe: jest
+          .fn()
+          .mockResolvedValue([{ id: 'box-1', status: AssetStatus.AVAILABLE }]),
       };
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
@@ -511,6 +529,7 @@ describe('RentalsService', () => {
       const activateSpy = jest
         .spyOn(service, 'activateRental')
         .mockRejectedValueOnce(new Error('Activation failed'))
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         .mockResolvedValueOnce({} as any);
 
       await service.autoActivateRentals();
