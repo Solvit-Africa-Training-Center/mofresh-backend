@@ -31,7 +31,7 @@ import { RolesGuard } from '../../common/guards';
 @UseGuards(RolesGuard)
 @ApiBearerAuth()
 export class RentalsController {
-  constructor(private readonly rentalsService: RentalsService) { }
+  constructor(private readonly rentalsService: RentalsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

@@ -26,10 +26,12 @@ describe('Orders (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
     // Mock authentication middleware
-    app.use((req, res, next) => {
+
+    app.use((req: any, res: any, next: any) => {
       if (req.headers['x-mock-user']) {
         req.user = JSON.parse(req.headers['x-mock-user'] as string);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       next();
     });
 
@@ -284,11 +286,10 @@ describe('Orders (e2e)', () => {
 
   describe('PATCH /orders/:id/approve', () => {
     it('should approve an order and reserve stock', async () => {
-      // Get initial product quantity
-      const productBefore = await prisma.product.findUnique({
+      // Get initial product quantity (for reference)
+      await prisma.product.findUnique({
         where: { id: testProductId },
       });
-      // const initialQuantity = productBefore.quantityKg;
 
       // Approve the order
       const response = await request(app.getHttpServer())

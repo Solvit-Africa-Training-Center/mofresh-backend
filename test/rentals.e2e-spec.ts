@@ -8,7 +8,6 @@ import { InvoicesService } from '../src/modules/invoices/invoices.service';
 describe('Rentals (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let invoicesService: InvoicesService;
 
   // Test Data
   let testSiteId: string;
@@ -34,17 +33,20 @@ describe('Rentals (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
     // Mock Auth
-    app.use((req, res, next) => {
+
+    app.use((req: any, res: any, next: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (req.headers['x-mock-user']) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         req.user = JSON.parse(req.headers['x-mock-user'] as string);
         // Also mock CurrentUser decorator behavior if possible, but usually decorators read req.user
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       next();
     });
 
     await app.init();
     prisma = app.get<PrismaService>(PrismaService);
-    invoicesService = app.get<InvoicesService>(InvoicesService);
 
     await cleanupTestData();
     await setupTestData();
@@ -119,6 +121,7 @@ describe('Rentals (e2e)', () => {
       estimatedFee: 50.0,
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
       .post('/rentals')
       .set(
@@ -129,11 +132,14 @@ describe('Rentals (e2e)', () => {
       .expect(201);
 
     expect(response.body).toHaveProperty('id');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(response.body.status).toBe('REQUESTED');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     testRentalId = response.body.id;
   });
 
   it('/rentals/:id/approve (PATCH) - Approve Rental & Invoice', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
       .patch(`/rentals/${testRentalId}/approve`)
       .set(
@@ -142,6 +148,7 @@ describe('Rentals (e2e)', () => {
       )
       .expect(200);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(response.body.status).toBe('APPROVED');
     expect(mockInvoicesService.generateRentalInvoice).toHaveBeenCalledWith(testRentalId);
 
@@ -151,6 +158,7 @@ describe('Rentals (e2e)', () => {
   });
 
   it('/rentals/:id/complete (PATCH) - Complete Rental', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
       .patch(`/rentals/${testRentalId}/complete`)
       .set(
@@ -159,6 +167,7 @@ describe('Rentals (e2e)', () => {
       )
       .expect(200);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     expect(response.body.status).toBe('COMPLETED');
 
     // Check Asset Status

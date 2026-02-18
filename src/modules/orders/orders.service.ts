@@ -133,80 +133,86 @@ export class OrdersService {
   }
 
   async approveOrders(orderId: string, approverId: string, siteId: string) {
-    const order = await this.db.order.findFirst({
-      where: {
-        id: orderId,
-        siteId,
-        deletedAt: null,
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-      },
-    });
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    if (order.status !== OrderStatus.REQUESTED) {
-      throw new BadRequestException(
-        `Cannot approve order with status: ${order.status}. Only REQUESTED orders can be approved`,
-      );
-    }
-
-    // Reserve
-    for (const item of order.items) {
-      await this.stockMovementsService.recordMovement(
-        {
-          productId: item.productId,
-          coldRoomId: item.product.coldRoomId,
-          quantityKg: item.quantityKg,
-          movementType: StockMovementType.OUT,
-          reason: `Order ${orderId} approved - stock reserved`,
-        },
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        {
-          userId: approverId,
-          role: UserRole.SITE_MANAGER,
+    return await this.db.$transaction(async (tx) => {
+      const order = await tx.order.findFirst({
+        where: {
+          id: orderId,
           siteId,
-        } as any,
-      );
-    }
-
-    // Update order status
-    const updatedOrder = await this.db.order.update({
-      where: { id: orderId },
-      data: {
-        status: OrderStatus.APPROVED,
-        approvedBy: approverId,
-        approvedAt: new Date(),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
+          deletedAt: null,
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
           },
         },
-        client: true,
-      },
+      });
+
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
+
+      if (order.status !== OrderStatus.REQUESTED) {
+        throw new BadRequestException(
+          `Cannot approve order with status: ${order.status}. Only REQUESTED orders can be approved`,
+        );
+      }
+
+      if (!order.items || order.items.length === 0) {
+        throw new BadRequestException('Order has no items');
+      }
+
+      // Reserve stock for each item
+      for (const item of order.items) {
+        await this.stockMovementsService.recordMovement(
+          {
+            productId: item.productId,
+            coldRoomId: item.product.coldRoomId,
+            quantityKg: item.quantityKg,
+            movementType: StockMovementType.OUT,
+            reason: `Order ${orderId} approved - stock reserved`,
+          },
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          {
+            userId: approverId,
+            role: UserRole.SITE_MANAGER,
+            siteId,
+          } as any,
+        );
+      }
+
+      // Update order status to APPROVED
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.APPROVED,
+          approvedBy: approverId,
+          approvedAt: new Date(),
+        },
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+          client: true,
+        },
+      });
+
+      // Generate invoice
+      await this.invoiceService.generateOrderInvoice(orderId, undefined, approverId, siteId);
+
+      // Audit log
+      await this.auditLogsService.createAuditLog(approverId, AuditAction.UPDATE, 'ORDER', orderId, {
+        action: 'APPROVE',
+        previousStatus: 'REQUESTED',
+        newStatus: 'APPROVED',
+        totalAmount: order.totalAmount,
+      });
+
+      return updatedOrder;
     });
-
-    // Generate invoice
-    await this.invoiceService.generateOrderInvoice(orderId);
-
-    // Audit log
-    await this.auditLogsService.createAuditLog(approverId, AuditAction.UPDATE, 'ORDER', orderId, {
-      action: 'APPROVE',
-      previousStatus: 'REQUESTED',
-      newStatus: 'APPROVED',
-      totalAmount: order.totalAmount,
-    });
-
-    return updatedOrder;
   }
 
   async rejectOrders(

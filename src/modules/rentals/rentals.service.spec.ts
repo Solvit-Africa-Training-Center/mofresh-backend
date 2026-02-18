@@ -179,8 +179,6 @@ describe('RentalsService', () => {
       expect(mockPrismaService.coldRoom.findFirst).toHaveBeenCalled();
     });
 
-
-
     it('should throw BadRequestException if asset not available', async () => {
       mockPrismaService.coldBox.findFirst.mockResolvedValue(null);
 
@@ -480,6 +478,7 @@ describe('RentalsService', () => {
       mockPrismaService.rental.findMany.mockResolvedValue(mockPaidRentals);
 
       // Spy on activateRental to ensure it's called
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       const activateSpy = jest.spyOn(service, 'activateRental').mockResolvedValue({} as any);
 
       await service.autoActivateRentals();
@@ -509,7 +508,8 @@ describe('RentalsService', () => {
 
       mockPrismaService.rental.findMany.mockResolvedValue(mockPaidRentals);
 
-      const activateSpy = jest.spyOn(service, 'activateRental')
+      const activateSpy = jest
+        .spyOn(service, 'activateRental')
         .mockRejectedValueOnce(new Error('Activation failed'))
         .mockResolvedValueOnce({} as any);
 

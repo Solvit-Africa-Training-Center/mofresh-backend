@@ -30,7 +30,7 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly db: PrismaService,
     private readonly invoicesService: InvoicesService,
-  ) { }
+  ) {}
 
   private getRoleBasedFilter(
     siteId: string | undefined,
@@ -65,11 +65,9 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     if (tricycleId) provided.push({ assetType: AssetType.TRICYCLE, assetId: tricycleId });
     if (coldRoomId) provided.push({ assetType: AssetType.COLD_ROOM, assetId: coldRoomId });
 
-    // User must provide exactly one asset ID
+    // user must provide exactly one asset ID
     if (provided.length === 0) {
-      throw new BadRequestException(
-        `Please select a specific ${assetType} .`,
-      );
+      throw new BadRequestException(`Please select a specific ${assetType} .`);
     }
 
     // If multiple IDs provided, throw error
@@ -114,12 +112,15 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
   private async checkAvailability(assetType: AssetType, assetId: string, siteId: string) {
     const modelKey = this.mapAssetTypeToModel(assetType);
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const model = (this.db as any)[modelKey];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const asset = await model.findFirst({
       where: { id: assetId, siteId, deletedAt: null },
       select: { status: true },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     return asset?.status === AssetStatus.AVAILABLE;
   }
 
@@ -140,8 +141,10 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     assetId: string,
     tx?: Prisma.TransactionClient,
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const client = (tx ?? this.db) as any;
     const modelKey = this.mapAssetTypeToModel(assetType);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await client[modelKey].update({
       where: { id: assetId },
       data: { status: AssetStatus.AVAILABLE },
@@ -152,7 +155,9 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Fetching available ${assetType} assets for site: ${siteId}`);
 
     const modelKey = this.mapAssetTypeToModel(assetType);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const model = (this.db as any)[modelKey];
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
     const assets = await model.findMany({
       where: {
         siteId,
@@ -183,7 +188,7 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     const available = await this.checkAvailability(assetType, assetId, siteId);
     if (!available) throw new BadRequestException(`${assetType} is not available`);
 
-    // Map the resolved assetId to the correct field based on asset type
+    // map the resolved assetId to the correct field based on asset type
     const assetIdMapping = {
       coldBoxId: assetType === AssetType.COLD_BOX ? assetId : null,
       coldPlateId: assetType === AssetType.COLD_PLATE ? assetId : null,
@@ -268,7 +273,6 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     if (!rental) throw new NotFoundException('Rental request not found');
     return rental;
   }
-
 
   //generates invoice and updates status to APPROVED
   // uses database transaction to ensure data consistency
@@ -374,7 +378,7 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
 
       const { assetType, assetId } = this.getRentalAssetRef(rental);
 
-      // At activation time, asset must still be available
+      // at activation time, asset must still be available
       const available = await this.checkAvailability(assetType, assetId, siteId);
       if (!available) throw new BadRequestException(`${assetType} is not available`);
 
@@ -454,9 +458,9 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     this.logger.log('Starting auto-activation polling for rentals...');
-    // Poll every 60 seconds
+    // poll every 60 seconds
     this.activationInterval = setInterval(() => {
       void this.autoActivateRentals();
     }, 60000);
@@ -468,13 +472,13 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // Automatically activate rentals that have been paid
+  // activate rentals that have been paid
 
   async autoActivateRentals() {
     try {
       this.logger.debug('Checking for paid rentals to activate...');
 
-      // Find all APPROVED rentals that have a PAID invoice
+      // find all APPROVED rentals that have a PAID invoice
       const paidRentals = await this.db.rental.findMany({
         where: {
           status: RentalStatus.APPROVED,
@@ -500,7 +504,7 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
           this.logger.log(`Auto-activated rental ${rental.id}`);
         } catch (error) {
           this.logger.error(`Failed to auto-activate rental ${rental.id}`, error);
-          // Continue to next rental even if one fails
+          // continue to next rental even if one fails
         }
       }
     } catch (error) {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 export async function paginate<T>(
   model: {
     findMany: (args: any) => Promise<T[]>;

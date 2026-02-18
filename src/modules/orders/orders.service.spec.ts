@@ -199,7 +199,16 @@ describe('OrdersService', () => {
     };
 
     it('should throw error if order not found', async () => {
-      mockPrismaService.order.findFirst.mockResolvedValue(null);
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          ...mockPrismaService,
+          order: {
+            ...mockPrismaService.order,
+            findFirst: jest.fn().mockResolvedValue(null),
+          },
+        };
+        return callback(tx);
+      });
 
       await expect(service.approveOrders(orderId, approverId, siteId)).rejects.toThrow(
         NotFoundException,
@@ -207,9 +216,18 @@ describe('OrdersService', () => {
     });
 
     it('should throw error if order not in REQUESTED status', async () => {
-      mockPrismaService.order.findFirst.mockResolvedValue({
-        ...mockOrder,
-        status: OrderStatus.APPROVED,
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          ...mockPrismaService,
+          order: {
+            ...mockPrismaService.order,
+            findFirst: jest.fn().mockResolvedValue({
+              ...mockOrder,
+              status: OrderStatus.APPROVED,
+            }),
+          },
+        };
+        return callback(tx);
       });
 
       await expect(service.approveOrders(orderId, approverId, siteId)).rejects.toThrow(
@@ -616,14 +634,26 @@ describe('OrdersService', () => {
         ],
       };
 
-      mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
-      mockStockMovementsService.recordMovement.mockResolvedValue({});
-      mockPrismaService.order.update.mockResolvedValue({
+      const updatedOrder = {
         ...mockOrder,
         status: OrderStatus.APPROVED,
         approvedBy: approverId,
         approvedAt: new Date(),
+      };
+
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          ...mockPrismaService,
+          order: {
+            ...mockPrismaService.order,
+            findFirst: jest.fn().mockResolvedValue(mockOrder),
+            update: jest.fn().mockResolvedValue(updatedOrder),
+          },
+        };
+        return callback(tx);
       });
+
+      mockStockMovementsService.recordMovement.mockResolvedValue({});
       mockInvoicesService.generateOrderInvoice.mockResolvedValue({});
       mockAuditLogsService.createAuditLog.mockResolvedValue({});
 
@@ -638,7 +668,12 @@ describe('OrdersService', () => {
         }),
         expect.any(Object),
       );
-      expect(mockInvoicesService.generateOrderInvoice).toHaveBeenCalledWith(orderId);
+      expect(mockInvoicesService.generateOrderInvoice).toHaveBeenCalledWith(
+        orderId,
+        undefined,
+        approverId,
+        siteId,
+      );
       expect(mockAuditLogsService.createAuditLog).toHaveBeenCalled();
     });
 
@@ -659,7 +694,17 @@ describe('OrdersService', () => {
         ],
       };
 
-      mockPrismaService.order.findFirst.mockResolvedValue(mockOrder);
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          ...mockPrismaService,
+          order: {
+            ...mockPrismaService.order,
+            findFirst: jest.fn().mockResolvedValue(mockOrder),
+          },
+        };
+        return callback(tx);
+      });
+
       mockStockMovementsService.recordMovement.mockRejectedValue(
         new BadRequestException('Insufficient stock balance'),
       );
