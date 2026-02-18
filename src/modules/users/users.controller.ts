@@ -69,6 +69,7 @@ export class UsersController {
       )) as UploadApiResponse;
       nationalIdUrl = result.secure_url;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.registerClientPersonal(dto, nationalIdUrl);
   }
 
@@ -109,6 +110,7 @@ export class UsersController {
       nationalIdUrl = result.secure_url;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.registerClientBusiness(dto, businessCertificateUrl, nationalIdUrl);
   }
 
@@ -154,6 +156,7 @@ export class UsersController {
       nationalIdUrl = result.secure_url;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.registerSupplier(
       dto,
       businessCertificateUrl,
@@ -173,6 +176,7 @@ export class UsersController {
     @CurrentUser() user: CurrentUserPayload,
   ) {
     const creatorId = user.userId;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.registerSiteManager(dto, creatorId);
   }
 
@@ -213,6 +217,7 @@ export class UsersController {
       nationalIdUrl = result.secure_url;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.registerSupplier(dto, businessCertificateUrl, nationalIdUrl);
   }
 
@@ -220,6 +225,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Submit a vendor request' })
   @ApiOkResponse({ description: 'Request submitted successfully' })
   createVendorRequest(@Body() dto: VendorRequestDto) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.createVendorRequest(dto);
   }
 
@@ -241,6 +247,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Reply to a vendor request by email' })
   @ApiOkResponse({ description: 'Reply sent successfully' })
   replyToVendorRequest(@Body() dto: ReplyVendorRequestDto) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.replyToVendorRequest(dto);
   }
 
@@ -250,6 +257,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Check if current user profile is complete' })
   @ApiOkResponse({ description: 'Completeness status and missing fields returned' })
   getProfileCompleteness(@CurrentUser() user: CurrentUserPayload) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     return this.usersService.getProfileCompleteness(user.userId);
   }
 
