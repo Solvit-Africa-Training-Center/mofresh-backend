@@ -1,22 +1,36 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
   ConflictException,
   ForbiddenException,
   UnauthorizedException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from './../../database/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { HashingUtil } from '../../common/utils/hashing.util';
-import { UserRole, ClientAccountType, Prisma, AuditAction } from '@prisma/client';
+import { UserRole, Prisma, AuditAction, ClientAccountType } from '@prisma/client';
 import { MailService } from '../mail/mail.service';
 import { PasswordGeneratorUtil } from '../../common/utils/password-generator.util';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { RegisterClientPersonalDto } from './dto/register-client-personal.dto';
+import { RegisterClientBusinessDto } from './dto/register-client-business.dto';
+import { RegisterSupplierDto } from './dto/register-supplier.dto';
+import { RegisterSiteManagerDto } from './dto/register-site-manager.dto';
+import { VendorRequestDto } from './dto/vendor-request.dto';
+import { ReplyVendorRequestDto } from './dto/reply-vendor-request.dto';
+
+interface RegistrationOptionalFields {
+  clientAccountType?: ClientAccountType;
+  businessName?: string;
+  tinNumber?: string;
+  businessCertificateDocument?: string;
+  nationalIdDocument?: string;
+}
+
+type UserWithCompleteness = Prisma.UserGetPayload<object> & {
+  isProfileComplete: boolean;
+};
 
 @Injectable()
 export class UsersService {
@@ -24,46 +38,13 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly auditLogsService: AuditLogsService,
-    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async register(
-    dto: CreateUserDto,
-    createdByUserId?: string,
-    files?: {
-      businessCertificateDocument?: Express.Multer.File[];
-      nationalIdDocument?: Express.Multer.File[];
-    },
-  ) {
-    this.validateClientAccount(dto, null, files);
+  async register(dto: CreateUserDto, createdByUserId?: string) {
     if (dto.role !== UserRole.CLIENT && !createdByUserId) {
       throw new UnauthorizedException(
         `Registration for ${dto.role} requires an administrator token.`,
       );
-    }
-
-    // Validate siteId requirements based on role
-    if (dto.role === UserRole.SUPER_ADMIN && dto.siteId) {
-      throw new BadRequestException('SUPER_ADMIN users should not have a siteId');
-    }
-
-    if (dto.role !== UserRole.SUPER_ADMIN && !dto.siteId) {
-      throw new BadRequestException(`siteId is required for ${dto.role} role`);
-    }
-
-    // Validate that the site exists if siteId is provided
-    if (dto.siteId) {
-      const site = await this.prisma.site.findUnique({
-        where: { id: dto.siteId },
-      });
-
-      if (!site) {
-        throw new BadRequestException(`Site with ID ${dto.siteId} does not exist`);
-      }
-
-      if (site.deletedAt) {
-        throw new BadRequestException(`Site with ID ${dto.siteId} has been deleted`);
-      }
     }
 
     if (createdByUserId) {
@@ -97,6 +78,8 @@ export class UsersService {
     }
     const hashedPassword = await HashingUtil.hash(passwordToHash);
 
+    const extraFields = dto as RegistrationOptionalFields;
+
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
@@ -106,38 +89,26 @@ export class UsersService {
         phone: dto.phone,
         role: dto.role,
         siteId: dto.siteId || null,
-        clientAccountType: dto.clientAccountType,
-        businessName: dto.businessName,
-        tinNumber: dto.tinNumber,
-        businessCertificateDocument: dto.businessCertificateDocument,
-        nationalIdDocument: dto.nationalIdDocument,
         isActive: true,
+        clientAccountType:
+          extraFields.clientAccountType ||
+          (dto.role === UserRole.CLIENT ? ClientAccountType.PERSONAL : null),
+        businessName: extraFields.businessName || null,
+        tinNumber: extraFields.tinNumber || null,
+        businessCertificateDocument: extraFields.businessCertificateDocument || null,
+        nationalIdDocument: extraFields.nationalIdDocument || null,
       },
     });
 
-    let finalUser = user;
-    if (files) {
-      const updateData: any = {};
-      if (files.businessCertificateDocument?.[0]) {
-        const res = await this.cloudinaryService.uploadFile(files.businessCertificateDocument[0]);
-        updateData.businessCertificateDocument = res.secure_url;
-      }
-      if (files.nationalIdDocument?.[0]) {
-        const res = await this.cloudinaryService.uploadFile(files.nationalIdDocument[0]);
-        updateData.nationalIdDocument = res.secure_url;
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      if (Object.keys(updateData).length > 0) {
-        finalUser = await this.prisma.user.update({
-          where: { id: user.id },
-          data: updateData,
-        });
-      }
-    }
+    // Update completeness after creation (fields are now in user object)
+    const isComplete = this.determineProfileCompleteness(user as unknown as UserWithCompleteness);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { isProfileComplete: isComplete } as Prisma.UserUpdateInput,
+    });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: p, refreshToken, deletedAt, ...userWithoutSensitiveData } = finalUser;
+    const { password: p, refreshToken, deletedAt, ...userWithoutSensitiveData } = user;
 
     await this.auditLogsService.createAuditLog(
       createdByUserId || user.id,
@@ -150,7 +121,204 @@ export class UsersService {
     return {
       status: 'success',
       message: 'User registered successfully.',
-      data: userWithoutSensitiveData,
+      data: { ...userWithoutSensitiveData, isProfileComplete: isComplete },
+    };
+  }
+
+  private determineProfileCompleteness(user: UserWithCompleteness): boolean {
+    const commonFields: (keyof UserWithCompleteness)[] = [
+      'email',
+      'firstName',
+      'lastName',
+      'phone',
+      'password',
+    ];
+    const hasCommonFields = commonFields.every((field) => !!user[field]);
+
+    if (!hasCommonFields) return false;
+
+    // siteId check (Required for all except SUPER_ADMIN)
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      return false;
+    }
+
+    if (user.role === UserRole.CLIENT) {
+      if (user.clientAccountType === ClientAccountType.BUSINESS) {
+        return !!(
+          user.businessName &&
+          user.tinNumber &&
+          user.businessCertificateDocument &&
+          user.nationalIdDocument
+        );
+      }
+      return !!user.nationalIdDocument;
+    }
+
+    if (user.role === UserRole.SUPPLIER) {
+      return !!(
+        user.businessName &&
+        user.tinNumber &&
+        user.businessCertificateDocument &&
+        user.nationalIdDocument
+      );
+    }
+
+    if (user.role === UserRole.SITE_MANAGER) {
+      return true; // siteId already checked
+    }
+
+    if (user.role === UserRole.SUPER_ADMIN) {
+      return true;
+    }
+
+    return false;
+  }
+
+  async getProfileCompleteness(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isComplete = this.determineProfileCompleteness(user as UserWithCompleteness);
+
+    // Sync field if it was somehow out of sync
+    if ((user as UserWithCompleteness).isProfileComplete !== isComplete) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { isProfileComplete: isComplete } as Prisma.UserUpdateInput,
+      });
+    }
+
+    return {
+      isProfileComplete: isComplete,
+      role: user.role,
+      missingFields: this.getMissingFields(user as UserWithCompleteness),
+    };
+  }
+
+  private getMissingFields(user: UserWithCompleteness): string[] {
+    const missing: string[] = [];
+    const commonFields: (keyof UserWithCompleteness)[] = [
+      'email',
+      'firstName',
+      'lastName',
+      'phone',
+      'password',
+    ];
+    commonFields.forEach((f) => {
+      if (!user[f]) missing.push(f as string);
+    });
+
+    if (user.role !== UserRole.SUPER_ADMIN && !user.siteId) {
+      missing.push('siteId');
+    }
+
+    if (user.role === UserRole.CLIENT) {
+      if (user.clientAccountType === ClientAccountType.BUSINESS) {
+        if (!user.businessName) missing.push('businessName');
+        if (!user.tinNumber) missing.push('tinNumber');
+        if (!user.businessCertificateDocument) missing.push('businessCertificateDocument');
+        if (!user.nationalIdDocument) missing.push('nationalIdDocument');
+      } else if (!user.nationalIdDocument) missing.push('nationalIdDocument');
+    }
+
+    if (user.role === UserRole.SUPPLIER) {
+      if (!user.businessName) missing.push('businessName');
+      if (!user.tinNumber) missing.push('tinNumber');
+      if (!user.businessCertificateDocument) missing.push('businessCertificateDocument');
+      if (!user.nationalIdDocument) missing.push('nationalIdDocument');
+    }
+
+    return missing;
+  }
+
+  async registerClientPersonal(dto: RegisterClientPersonalDto, nationalIdUrl?: string) {
+    const registerDto: CreateUserDto & RegistrationOptionalFields = {
+      ...dto,
+      role: UserRole.CLIENT,
+      nationalIdDocument: nationalIdUrl,
+    };
+    return this.register(registerDto as CreateUserDto);
+  }
+
+  async registerClientBusiness(
+    dto: RegisterClientBusinessDto,
+    businessCertificateUrl?: string,
+    nationalIdUrl?: string,
+  ) {
+    const registerDto: CreateUserDto & RegistrationOptionalFields = {
+      ...dto,
+      role: UserRole.CLIENT,
+      clientAccountType: ClientAccountType.BUSINESS,
+      businessCertificateDocument: businessCertificateUrl,
+      nationalIdDocument: nationalIdUrl,
+    };
+    return this.register(registerDto as CreateUserDto);
+  }
+
+  async registerSupplier(
+    dto: RegisterSupplierDto,
+    businessCertificateUrl?: string,
+    nationalIdUrl?: string,
+    createdByUserId?: string,
+  ) {
+    const registerDto: CreateUserDto & RegistrationOptionalFields = {
+      ...dto,
+      role: UserRole.SUPPLIER,
+      businessCertificateDocument: businessCertificateUrl,
+      nationalIdDocument: nationalIdUrl,
+    };
+    return this.register(registerDto as CreateUserDto, createdByUserId);
+  }
+
+  async registerSiteManager(dto: RegisterSiteManagerDto, createdByUserId?: string) {
+    const registerDto: CreateUserDto & RegistrationOptionalFields = {
+      ...dto,
+      role: UserRole.SITE_MANAGER,
+    };
+    return this.register(registerDto as CreateUserDto, createdByUserId);
+  }
+
+  async createVendorRequest(dto: VendorRequestDto) {
+    const request = await this.prisma.vendorRequest.create({
+      data: dto as unknown as Prisma.VendorRequestCreateInput,
+    });
+    return {
+      status: 'success',
+      message: 'Vendor request submitted successfully.',
+      data: request,
+    };
+  }
+
+  async replyToVendorRequest(dto: ReplyVendorRequestDto) {
+    const request = await this.prisma.vendorRequest.findFirst({
+      where: { email: dto.email, deletedAt: null } as Prisma.VendorRequestWhereInput,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Vendor request with email ${dto.email} not found`);
+    }
+
+    const updatedRequest = await this.prisma.vendorRequest.update({
+      where: { id: request.id },
+      data: {
+        replyMessage: dto.message,
+        status: 'APPROVED',
+      },
+    });
+
+    // Send email to the vendor
+    await this.mailService.sendEmail(request.email, 'Reply to your Vendor Request', dto.message);
+
+    return {
+      status: 'success',
+      message: 'Reply sent successfully.',
+      data: updatedRequest,
     };
   }
 
@@ -177,52 +345,7 @@ export class UsersService {
     throw new ForbiddenException('You do not have permission to register users');
   }
 
-  private validateClientAccount(
-    dto: CreateUserDto | UpdateUserDto,
-    existingUser?: any,
-    files?: {
-      businessCertificateDocument?: Express.Multer.File[];
-      nationalIdDocument?: Express.Multer.File[];
-    },
-  ) {
-    const role = dto.role || existingUser?.role;
-    const accountType = dto.clientAccountType || existingUser?.clientAccountType;
-
-    if (role === UserRole.CLIENT) {
-      if (!accountType) {
-        throw new BadRequestException('clientAccountType is required for CLIENT role');
-      }
-
-      if (accountType === ClientAccountType.BUSINESS) {
-        const businessName = dto.businessName || existingUser?.businessName;
-        const tinNumber = dto.tinNumber || existingUser?.tinNumber;
-        const certDoc =
-          dto.businessCertificateDocument || existingUser?.businessCertificateDocument;
-        const idDoc = dto.nationalIdDocument || existingUser?.nationalIdDocument;
-
-        if (!businessName)
-          throw new BadRequestException('businessName is required for BUSINESS accounts');
-        if (!tinNumber)
-          throw new BadRequestException('tinNumber is required for BUSINESS accounts');
-        if (!certDoc && !files?.businessCertificateDocument?.[0]) {
-          throw new BadRequestException('businessCertificateDocument is required');
-        }
-        if (!idDoc && !files?.nationalIdDocument?.[0]) {
-          throw new BadRequestException('nationalIdDocument is required');
-        }
-      }
-    }
-  }
-
-  async update(
-    id: string,
-    dto: UpdateUserDto,
-    requesterId: string,
-    files?: {
-      businessCertificateDocument?: Express.Multer.File[];
-      nationalIdDocument?: Express.Multer.File[];
-    },
-  ) {
+  async update(id: string, dto: UpdateUserDto, requesterId: string) {
     const requester = await this.prisma.user.findUnique({
       where: { id: requesterId },
       select: { role: true, siteId: true },
@@ -233,8 +356,6 @@ export class UsersService {
     }
 
     const { data: targetUser } = await this.findOne(id);
-
-    this.validateClientAccount(dto, targetUser, files);
 
     if (requester.role === UserRole.SITE_MANAGER) {
       if (targetUser.siteId !== requester.siteId) {
@@ -256,21 +377,20 @@ export class UsersService {
       updateData.password = await HashingUtil.hash(password);
     }
 
-    if (files) {
-      if (files.businessCertificateDocument?.[0]) {
-        const res = await this.cloudinaryService.uploadFile(files.businessCertificateDocument[0]);
-        updateData.businessCertificateDocument = res.secure_url;
-      }
-      if (files.nationalIdDocument?.[0]) {
-        const res = await this.cloudinaryService.uploadFile(files.nationalIdDocument[0]);
-        updateData.nationalIdDocument = res.secure_url;
-      }
-    }
-
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: updateData,
     });
+
+    // Re-calculate completeness after update
+    const isComplete = this.determineProfileCompleteness(updatedUser as UserWithCompleteness);
+    if ((updatedUser as UserWithCompleteness).isProfileComplete !== isComplete) {
+      await this.prisma.user.update({
+        where: { id },
+        data: { isProfileComplete: isComplete } as Prisma.UserUpdateInput,
+      });
+      (updatedUser as UserWithCompleteness).isProfileComplete = isComplete;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: p, refreshToken: r, ...data } = updatedUser;
