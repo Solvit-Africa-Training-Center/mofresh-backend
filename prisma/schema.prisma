@@ -19,6 +19,17 @@ enum UserRole {
   CLIENT
 }
 
+enum ClientAccountType {
+  PERSONAL
+  BUSINESS
+}
+
+enum VendorRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PowerType {
   GRID
   OFF_GRID
@@ -113,6 +124,12 @@ model User {
   role                  UserRole
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
+  isProfileComplete     Boolean           @default(false)
+  clientAccountType     ClientAccountType?
+  businessName          String?
+  tinNumber             String?
+  businessCertificateDocument String?     // Cloudinary URL
+  nationalIdDocument     String?           // Cloudinary URL
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
   deletedAt             DateTime?         // Soft delete
@@ -484,4 +501,19 @@ model AuditLog {
   @@index([userId])
   @@index([timestamp])
   @@map("audit_logs")
+}
+model VendorRequest {
+  id          String              @id @default(uuid())
+  email       String
+  phone       String
+  description String?
+  replyMessage String?
+  status      VendorRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  deletedAt   DateTime?
+
+  @@index([email])
+  @@index([status])
+  @@map("vendor_requests")
 }

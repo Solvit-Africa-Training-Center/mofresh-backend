@@ -13,6 +13,12 @@ const MOCK_USER_BASE = {
   role: UserRole.CLIENT,
 };
 
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+
+const mockCloudinaryService = {
+  uploadFile: jest.fn().mockResolvedValue({ secure_url: 'http://test.url' }),
+};
+
 describe('UsersController', () => {
   let controller: UsersController;
   let service: UsersService;
@@ -29,7 +35,10 @@ describe('UsersController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: mockUsersService }],
+      providers: [
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: CloudinaryService, useValue: mockCloudinaryService },
+      ],
     }).compile();
 
     controller = module.get<UsersController>(UsersController);
