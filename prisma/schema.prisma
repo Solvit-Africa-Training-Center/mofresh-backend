@@ -92,6 +92,7 @@ enum AssetType {
   COLD_BOX
   COLD_PLATE
   TRICYCLE
+  COLD_ROOM
 }
 
 enum TricycleCategory {
@@ -213,6 +214,7 @@ model ColdRoom {
   site            Site             @relation(fields: [siteId], references: [id])
   products        Product[]
   stockMovements  StockMovement[]
+  rentals         Rental[]
 
   @@index([siteId])
   @@map("cold_rooms")
@@ -228,6 +230,8 @@ model ColdBox {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
+  imageUrl             String?
+ 
 
   // Relations
   site                 Site         @relation(fields: [siteId], references: [id])
@@ -247,6 +251,8 @@ model ColdPlate {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   deletedAt            DateTime?
+  imageUrl             String?
+  
 
   // Relations
   site                 Site         @relation(fields: [siteId], references: [id])
@@ -267,6 +273,9 @@ model Tricycle {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deletedAt   DateTime?
+  imageUrl    String?
+  
+
 
   // Relations
   site        Site             @relation(fields: [siteId], references: [id])
@@ -291,6 +300,8 @@ model Product {
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
+  imageUrl            String?
+  description         String?
 
   // Relations
   supplier            User             @relation("SupplierProducts", fields: [supplierId], references: [id])
@@ -450,23 +461,25 @@ model Payment {
 }
 
 model Rental {
-  id              String       @id @default(uuid())
-  clientId        String
-  siteId          String
-  assetType       AssetType
-  coldBoxId       String?
-  coldPlateId     String?
-  tricycleId      String?
-  status          RentalStatus @default(REQUESTED)
-  rentalStartDate DateTime
-  rentalEndDate   DateTime
-  estimatedFee    Float
-  actualFee       Float?
-  approvedAt      DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
+  id                 String       @id @default(uuid())
+  clientId           String
+  siteId             String
+  assetType          AssetType
+  coldBoxId          String?
+  coldPlateId        String?
+  tricycleId         String?
+  coldRoomId         String?
+  status             RentalStatus @default(REQUESTED)
+  rentalStartDate    DateTime
+  rentalEndDate      DateTime
+  estimatedFee       Float
+  actualFee          Float?
+  capacityNeededKg   Float?
+  approvedAt         DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
 
   // Relations
   client          User         @relation("ClientRentals", fields: [clientId], references: [id])
@@ -474,6 +487,7 @@ model Rental {
   coldBox         ColdBox?     @relation(fields: [coldBoxId], references: [id])
   coldPlate       ColdPlate?   @relation(fields: [coldPlateId], references: [id])
   tricycle        Tricycle?    @relation(fields: [tricycleId], references: [id])
+  coldRoom        ColdRoom?    @relation(fields: [coldRoomId], references: [id])
   invoice         Invoice?
 
   @@index([clientId])
@@ -482,6 +496,7 @@ model Rental {
   @@index([coldBoxId])
   @@index([coldPlateId])
   @@index([tricycleId])
+  @@index([coldRoomId])
   @@map("rentals")
 }
 
