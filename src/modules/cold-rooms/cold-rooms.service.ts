@@ -12,15 +12,21 @@ import { UpdateColdRoomDto } from './dto/update-cold-room.dto';
 import { ColdRoomEntity } from './entities/cold-room.entity';
 import { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ColdRoomService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditLogsService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
-  async create(dto: CreateColdRoomDto, user: CurrentUserPayload): Promise<ColdRoomEntity> {
+  async create(
+    dto: CreateColdRoomDto,
+    user: CurrentUserPayload,
+    image?: Express.Multer.File,
+  ): Promise<ColdRoomEntity> {
     if (user.role === UserRole.SITE_MANAGER) {
       if (!user.siteId) {
         throw new BadRequestException('Your manager account is not assigned to a site.');
@@ -44,8 +50,21 @@ export class ColdRoomService {
       throw new NotFoundException(`Site with ID ${dto.siteId} does not exist.`);
     }
 
+    let imageUrl: string | undefined;
+    if (image) {
+      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-cold-rooms');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      imageUrl = uploadResult.secure_url;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
+    const { image: _image, ...roomData } = dto;
+
     const room = await this.prisma.coldRoom.create({
-      data: dto,
+      data: {
+        ...roomData,
+        ...(imageUrl && { imageUrl }),
+      },
     });
 
     await this.auditService.createAuditLog(user.userId, AuditAction.CREATE, 'ColdRoom', room.id, {
@@ -113,22 +132,35 @@ export class ColdRoomService {
     id: string,
     dto: UpdateColdRoomDto,
     user: CurrentUserPayload,
+    image?: Express.Multer.File,
   ): Promise<ColdRoomEntity> {
     await this.findOne(id, user);
     if (user.role === UserRole.SITE_MANAGER && dto.siteId && dto.siteId !== user.siteId) {
       throw new ForbiddenException('Only an admin can reassign a cold room to a different site.');
     }
 
+    let imageUrl: string | undefined;
+    if (image) {
+      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-cold-rooms');
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      imageUrl = uploadResult.secure_url;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment
+    const { image: _image, ...updateData } = dto;
+
     const updated = await this.prisma.coldRoom.update({
       where: { id },
-      data: dto,
+      data: {
+        ...updateData,
+        ...(imageUrl && { imageUrl }),
+      },
     });
 
     await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'ColdRoom', id, {
       coldRoomName: updated.name,
       status: updated.status,
     });
-
     return new ColdRoomEntity(updated);
   }
 

@@ -20,17 +20,29 @@ import {
 import { CurrentUserPayload } from '@/common/decorators/current-user.decorator';
 import { isUUID } from 'class-validator';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditLogsService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
-  async create(dto: CreateProductDto, user: CurrentUserPayload): Promise<ProductEntity> {
+  async create(
+    dto: CreateProductDto,
+    user: CurrentUserPayload,
+    image?: Express.Multer.File,
+  ): Promise<ProductEntity> {
     if (user.role === UserRole.SITE_MANAGER) {
       dto.siteId = user.siteId;
+    }
+
+    let imageUrl: string | undefined;
+    if (image) {
+      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-products');
+      imageUrl = uploadResult.secure_url as string;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -54,7 +66,11 @@ export class ProductsService {
       }
 
       const product = await tx.product.create({
-        data: { ...dto, status: ProductStatus.IN_STOCK },
+        data: {
+          ...dto,
+          ...(imageUrl && { imageUrl }),
+          status: ProductStatus.IN_STOCK,
+        },
       });
 
       await tx.stockMovement.create({
@@ -159,11 +175,18 @@ export class ProductsService {
     id: string,
     dto: UpdateProductDto,
     user: CurrentUserPayload,
+    image?: Express.Multer.File,
   ): Promise<ProductEntity> {
     const existingProduct = await this.findOne(id, user);
 
     if (user.role === UserRole.SITE_MANAGER && dto.siteId) {
       throw new ForbiddenException('Only an admin can replace the product site');
+    }
+
+    let imageUrl: string | undefined;
+    if (image) {
+      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-products');
+      imageUrl = uploadResult.secure_url as string;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -197,7 +220,10 @@ export class ProductsService {
 
       const updated = await tx.product.update({
         where: { id },
-        data: dto,
+        data: {
+          ...dto,
+          ...(imageUrl && { imageUrl }),
+        },
         include: {
           site: { select: { name: true } },
           coldRoom: { select: { name: true } },
@@ -210,8 +236,7 @@ export class ProductsService {
 
       return new ProductEntity({
         ...updated,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-        category: updated.category as ProductCategory,
+        status: updated.status,
       });
     });
   }
@@ -221,39 +246,36 @@ export class ProductsService {
     dto: AdjustStockDto,
     user: CurrentUserPayload,
   ): Promise<ProductEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const currentProduct = await this.findOne(id, user);
+    // Validate user has access to this product
+    await this.findOne(id, user);
 
     return this.prisma.$transaction(async (tx) => {
-      const products = await tx.$queryRaw<any[]>`
-        SELECT id, "quantityKg", "coldRoomId", "deletedAt" FROM "Product" WHERE id = ${id} FOR UPDATE
-      `;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const product = products[0];
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (!product || product.deletedAt) throw new NotFoundException('Product not found');
+      // Fetch the current product within transaction
+      const product = await tx.product.findUnique({
+        where: { id },
+      });
+
+      if (!product) throw new NotFoundException('Product not found');
 
       const isIncrement = dto.movementType === StockMovementType.IN;
       const weightChange = isIncrement ? dto.quantityKg : -dto.quantityKg;
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const newQuantity = product.quantityKg + weightChange;
 
       if (newQuantity < 0) throw new BadRequestException('Insufficient stock for this operation');
 
       if (isIncrement) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const coldRoom = await tx.coldRoom.findUnique({ where: { id: product.coldRoomId } });
 
         if (!coldRoom) {
           throw new NotFoundException('Associated cold room not found');
         }
-        if (isIncrement) {
-          if (coldRoom.status !== 'AVAILABLE') {
-            throw new BadRequestException(
-              `Cannot add stock: Cold room is currently ${coldRoom.status.toLowerCase()}`,
-            );
-          }
+
+        if (coldRoom.status !== 'AVAILABLE') {
+          throw new BadRequestException(
+            `Cannot add stock: Cold room is currently ${coldRoom.status.toLowerCase()}`,
+          );
         }
+
         if (coldRoom.usedCapacityKg + dto.quantityKg > coldRoom.totalCapacityKg) {
           throw new BadRequestException(
             `Storage capacity exceeded. Available: ${coldRoom.totalCapacityKg - coldRoom.usedCapacityKg}kg, Requested: ${dto.quantityKg}kg`,
@@ -261,25 +283,25 @@ export class ProductsService {
         }
       }
 
+      // Update product with new quantity and status
       const updated = await tx.product.update({
         where: { id },
         data: {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           quantityKg: newQuantity,
           status: newQuantity > 0 ? ProductStatus.IN_STOCK : ProductStatus.OUT_OF_STOCK,
         },
       });
 
+      // Update cold room capacity
       await tx.coldRoom.update({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         where: { id: product.coldRoomId },
         data: { usedCapacityKg: { increment: weightChange } },
       });
 
+      // Record stock movement
       await tx.stockMovement.create({
         data: {
           productId: id,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           coldRoomId: product.coldRoomId,
           quantityKg: dto.quantityKg,
           movementType: dto.movementType,
@@ -288,18 +310,19 @@ export class ProductsService {
         },
       });
 
+      // Audit log
       await tx.auditLog.create({
         data: {
           action: AuditAction.UPDATE,
-          entityType: 'StockMovement',
+          entityType: 'Product',
           entityId: id,
           userId: user.userId,
           details: {
-            movementType: dto.movementType,
-            quantityKg: dto.quantityKg,
-            reason: dto.reason,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            previousQuantity: product.quantityKg,
             newQuantity,
+            movementType: dto.movementType,
+            quantityChangedKg: dto.quantityKg,
+            reason: dto.reason,
           },
           timestamp: new Date(),
         },
@@ -307,8 +330,7 @@ export class ProductsService {
 
       return new ProductEntity({
         ...updated,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-        category: updated.category as ProductCategory,
+        status: updated.status,
       });
     });
   }

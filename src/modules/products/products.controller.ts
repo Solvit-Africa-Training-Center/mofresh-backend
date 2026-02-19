@@ -9,8 +9,11 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiConsumes } from '@nestjs/swagger';
 import { UserRole, ProductCategory } from '@prisma/client';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -32,9 +35,15 @@ export class ProductsController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Register a new agricultural product' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, type: ProductEntity })
-  async create(@Body() dto: CreateProductDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.productsService.create(dto, user);
+  @UseInterceptors(FileInterceptor('image'))
+  async create(
+    @Body() dto: CreateProductDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.productsService.create(dto, user, image);
   }
 
   @Get()
@@ -62,12 +71,15 @@ export class ProductsController {
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update product metadata' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
     @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.productsService.update(id, dto, user);
+    return this.productsService.update(id, dto, user, image);
   }
 
   @Patch(':id/adjust-stock')

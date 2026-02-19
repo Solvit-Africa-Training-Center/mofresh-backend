@@ -8,14 +8,20 @@ import {
   Param,
   ParseUUIDPipe,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { ColdAssetsService } from './cold-assets.services';
 import {
   CreateTricycleDto,
   CreateColdBoxDto,
   CreateColdPlateDto,
+  UpdateTricycleDto,
+  UpdateColdBoxDto,
+  UpdateColdPlateDto,
   UpdateAssetStatusDto,
 } from './dto/cold-assets.dto';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
@@ -35,8 +41,14 @@ export class ColdAssetsController {
   @Post('tricycles')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new tricycle' })
-  createTricycle(@Body() dto: CreateTricycleDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.createTricycle(dto, user);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  createTricycle(
+    @Body() dto: CreateTricycleDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.createTricycle(dto, user, image);
   }
 
   @Get('tricycles')
@@ -46,13 +58,33 @@ export class ColdAssetsController {
     return this.assetsService.findTricycles(user);
   }
 
+  @Patch('tricycles/:id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({ summary: 'Update tricycle details' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  updateTricycle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTricycleDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.updateTricycle(id, dto, user, image);
+  }
+
   // 2. COLD BOXES
 
   @Post('boxes')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new cold box' })
-  createBox(@Body() dto: CreateColdBoxDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.createColdBox(dto, user);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  createBox(
+    @Body() dto: CreateColdBoxDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.createColdBox(dto, user, image);
   }
 
   @Get('boxes')
@@ -62,13 +94,33 @@ export class ColdAssetsController {
     return this.assetsService.findColdBoxes(user);
   }
 
+  @Patch('boxes/:id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({ summary: 'Update cold box details' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  updateBox(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateColdBoxDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.updateColdBox(id, dto, user, image);
+  }
+
   // 3. COLD PLATES
 
   @Post('plates')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new cold plate' })
-  createPlate(@Body() dto: CreateColdPlateDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.createColdPlate(dto, user);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  createPlate(
+    @Body() dto: CreateColdPlateDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.createColdPlate(dto, user, image);
   }
 
   @Get('plates')
@@ -76,6 +128,20 @@ export class ColdAssetsController {
   @ApiOperation({ summary: 'Get cold plates (Filtered by user scope)' })
   getPlates(@CurrentUser() user: CurrentUserPayload) {
     return this.assetsService.findColdPlates(user);
+  }
+
+  @Patch('plates/:id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({ summary: 'Update cold plate details' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('image'))
+  updatePlate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateColdPlateDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.assetsService.updateColdPlate(id, dto, user, image);
   }
 
   // 4. STATUS & REMOVAL
@@ -93,8 +159,8 @@ export class ColdAssetsController {
   }
 
   @Delete(':type/:id')
-  @Roles(UserRole.SUPER_ADMIN) // Usually, only Super Admins can delete assets
-  @ApiOperation({ summary: 'Remove asset (Super Admin only)' })
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiOperation({ summary: 'Remove asset (Manager restricted to own site, Admin unrestricted)' })
   remove(
     @Param('type') type: 'tricycle' | 'coldBox' | 'coldPlate',
     @Param('id', ParseUUIDPipe) id: string,
