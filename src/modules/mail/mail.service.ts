@@ -66,6 +66,7 @@ export class MailService implements OnModuleInit {
     } catch (error: any) {
       this.logger.error(`❌ Brevo Failure: ${error.message}`);
     }
+
   }
 
   async sendOtpEmail(email: string, otp: string) {
@@ -91,6 +92,32 @@ export class MailService implements OnModuleInit {
     try {
       const data = await this.brevo.sendTransacEmail(sendSmtpEmail);
       this.logger.log(`✅ OTP email sent to: ${email} (MsgID: ${data.body.messageId})`);
+    } catch (error: any) {
+      this.logger.error(`❌ Brevo Failure: ${error.message}`);
+    }
+  }
+
+  async sendEmail(to: string, subject: string, content: string) {
+    if (!this.emailEnabled) {
+      this.logger.log(`📧 [SKIPPED] Would send email to: ${to}`);
+      return;
+    }
+
+    const fromEmail = this.configService.get<string>('FROM_EMAIL');
+    const sendSmtpEmail = new sib.SendSmtpEmail();
+
+    sendSmtpEmail.subject = subject;
+    sendSmtpEmail.htmlContent = `
+      <div style="font-family: sans-serif; padding: 20px;">
+        ${content}
+      </div>
+    `;
+    sendSmtpEmail.sender = { name: "MoFresh Support", email: fromEmail };
+    sendSmtpEmail.to = [{ email: to }];
+
+    try {
+      const data = await this.brevo.sendTransacEmail(sendSmtpEmail);
+      this.logger.log(`✅ Email sent to: ${to} (MsgID: ${data.body.messageId})`);
     } catch (error: any) {
       this.logger.error(`❌ Brevo Failure: ${error.message}`);
     }

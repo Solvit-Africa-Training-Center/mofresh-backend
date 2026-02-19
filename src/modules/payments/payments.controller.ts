@@ -13,9 +13,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto';
 import { RolesGuard } from '../../common/guards';
-import { Roles } from '../../common/decorators';
-import { CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser } from '../../common/interfaces';
+import { Roles, CurrentUser, CurrentUserPayload } from '../../common/decorators';
 import { UserRole, PaymentStatus } from '@prisma/client';
 
 @ApiTags('Payments')
@@ -31,11 +29,11 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Initiate MTN MoMo payment' })
   @ApiResponse({ status: 201, description: 'Payment initiated successfully' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
-  async initiatePayment(@Body() body: InitiatePaymentDto, @CurrentUser() user: AuthenticatedUser) {
+  async initiatePayment(@Body() body: InitiatePaymentDto, @CurrentUser() user: CurrentUserPayload) {
     return this.paymentsService.initiatePayment(
       body.invoiceId,
       body.phoneNumber,
-      user.id,
+      user.userId,
       user.role,
       user.siteId,
     );
@@ -46,17 +44,17 @@ export class PaymentsController {
   @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Manually mark payment as paid' })
   @ApiResponse({ status: 200, description: 'Payment marked as paid' })
-  async markPaidManually(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async markPaidManually(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
     const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.paymentsService.markPaidManually(id, user.id, userSiteId);
+    return this.paymentsService.markPaidManually(id, user.userId, userSiteId);
   }
 
   @Get(':id')
   @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN, UserRole.CLIENT)
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiResponse({ status: 200, description: 'Payment found' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.findOne(id, user.id, user.role, user.siteId);
+  async findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
+    return this.paymentsService.findOne(id, user.userId, user.role, user.siteId);
   }
 
   @Get()
