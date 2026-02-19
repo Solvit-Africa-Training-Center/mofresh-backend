@@ -13,12 +13,13 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto';
 import { RolesGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles, CurrentUser, CurrentUserPayload } from '../../common/decorators';
 import { UserRole, PaymentStatus } from '@prisma/client';
 
 @ApiTags('Payments')
 @Controller('payments')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
