@@ -127,14 +127,19 @@ export class MtnMomoService {
     payerMessage?: string,
     payeeNote?: string,
   ): Promise<string> {
-    this.logger.log(`Initiating MTN MoMo payment: ${amount} RWF for ${phoneNumber}`);
+    this.logger.log(
+      `Initiating MTN MoMo payment: ${amount} ${this.environment === 'sandbox' ? 'EUR' : 'RWF'} for ${phoneNumber}`,
+    );
 
     const token = await this.getAccessToken();
     const referenceId = uuidv4();
 
+    // EUR in sandbox testing, RWF for production
+    const currency = this.environment === 'sandbox' ? 'EUR' : 'RWF';
+
     const payload: MoMoPaymentRequest = {
       amount: amount.toString(),
-      currency: 'RWF',
+      currency,
       externalId,
       payer: {
         partyIdType: 'MSISDN',
