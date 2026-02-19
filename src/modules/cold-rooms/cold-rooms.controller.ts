@@ -9,13 +9,17 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Delete,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiBearerAuth,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { ColdRoomService } from './cold-rooms.service';
 import { ColdRoomEntity } from './entities/cold-room.entity';
@@ -38,9 +42,15 @@ export class ColdRoomsController {
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Register a new cold storage unit' })
+  @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({ type: ColdRoomEntity })
-  async create(@Body() dto: CreateColdRoomDto, @CurrentUser() user: CurrentUserPayload) {
-    return this.coldRoomService.create(dto, user);
+  @UseInterceptors(FileInterceptor('image'))
+  async create(
+    @Body() dto: CreateColdRoomDto,
+    @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
+  ) {
+    return this.coldRoomService.create(dto, user, image);
   }
 
   @Get()
@@ -73,13 +83,16 @@ export class ColdRoomsController {
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update capacity or temperature' })
+  @ApiConsumes('multipart/form-data')
   @ApiOkResponse({ type: ColdRoomEntity })
+  @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateColdRoomDto,
     @CurrentUser() user: CurrentUserPayload,
+    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.coldRoomService.update(id, dto, user);
+    return this.coldRoomService.update(id, dto, user, image);
   }
 
   @Delete(':id')

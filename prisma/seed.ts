@@ -151,6 +151,21 @@ async function main() {
     },
   });
 
+  const manager4 = await prisma.user.upsert({
+    where: { email: 'umu1aimee@gmail.com' },
+    update: { siteId: site3.id },
+    create: {
+      email: 'umu1aimee@gmail.com',
+      password: hashedPassword,
+      firstName: 'Aimee',
+      lastName: 'site manager',
+      phone: '+250786243990',
+      role: UserRole.SITE_MANAGER,
+      siteId: site3.id,
+      isActive: true,
+    },
+  });
+
   const customManager = await prisma.user.upsert({
     where: { email: 'munezeromas+1@gmail.com' },
     update: { siteId: site1.id },
@@ -247,6 +262,21 @@ async function main() {
       firstName: 'Sarah',
       lastName: 'Uwimana',
       phone: '+250788777777',
+      role: UserRole.CLIENT,
+      siteId: site2.id,
+      isActive: true,
+    },
+  });
+
+  const client3 = await prisma.user.upsert({
+    where: { email: 'umu1aimee+1@gmail.com' },
+    update: { siteId: site2.id },
+    create: {
+      email: 'umu1aimee+1@gmail.com',
+      password: hashedPassword,
+      firstName: 'Ella',
+      lastName: 'Jojo',
+      phone: '+250737411811',
       role: UserRole.CLIENT,
       siteId: site2.id,
       isActive: true,
