@@ -27,7 +27,9 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
     "docker:prod": "docker-compose up -d",
-    "docker:down": "docker-compose down"
+    "docker:down": "docker-compose down",
+    "start:railway": "echo 'Checking DATABASE_URL...' && ( [ -z \"$DATABASE_URL\" ] && echo '❌ DATABASE_URL is EMPTY!' || echo '✅ DATABASE_URL is set' ) && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && (node dist/main.js || node dist/src/main.js || (ls -R dist && exit 1))",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@getbrevo/brevo": "^3.0.1",
@@ -54,8 +56,10 @@
     "nodemailer": "^7.0.13",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "prisma": "^6.19.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "ts-node": "^10.9.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -80,13 +84,11 @@
     "eslint-plugin-prettier": "^5.5.5",
     "jest": "^29.7.0",
     "prettier": "^3.8.1",
-    "prisma": "^6.19.2",
     "rimraf": "^6.1.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.4",
-    "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"

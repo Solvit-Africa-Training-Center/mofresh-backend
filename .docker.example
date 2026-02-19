@@ -1,5 +1,0 @@
-#Instructions
-
-1.Start Docker: docker-compose up -d
-2.Sync DB: npx prisma db push
-3.Stops and removes the DB: docker-compose down
