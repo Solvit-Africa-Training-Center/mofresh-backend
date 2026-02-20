@@ -294,6 +294,17 @@ export class UsersService {
     };
   }
 
+  async findAllVendorRequests() {
+    const requests = await this.prisma.vendorRequest.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      status: 'success',
+      data: requests,
+    };
+  }
+
   async replyToVendorRequest(dto: ReplyVendorRequestDto) {
     const request = await this.prisma.vendorRequest.findFirst({
       where: { email: dto.email, deletedAt: null } as Prisma.VendorRequestWhereInput,
