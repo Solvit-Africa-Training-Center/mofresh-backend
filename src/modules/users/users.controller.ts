@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Controller,
   Get,
@@ -220,6 +221,17 @@ export class UsersController {
   @ApiOkResponse({ description: 'Request submitted successfully' })
   createVendorRequest(@Body() dto: VendorRequestDto) {
     return this.usersService.createVendorRequest(dto);
+  }
+
+  @Get('vendor-requests')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all vendor requests' })
+  @ApiOkResponse({ description: 'List of vendor requests retrieved successfully' })
+  findAllVendorRequests() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    return this.usersService.findAllVendorRequests();
   }
 
   @Post('vendor-request/reply')
