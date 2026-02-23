@@ -47,15 +47,15 @@ export class SeederService {
       // 1. Create Super Admins
       this.logger.log('👤 Creating Super Admins...');
       const superAdmin = await this.prisma.user.upsert({
-        where: { email: 'admin@mofresh.rw' },
+        where: { email: 'divinngenzi20@gmail.com' },
         update: {},
         create: {
-          email: 'admin@mofresh.rw',
+          email: 'divinngenzi20@gmail.com',
           password: hashedPassword,
           firstName: 'Super',
           lastName: 'Admin',
           phone: '+250788000000',
-          role: UserRole.SUPER_ADMIN,
+          role: UserRole.SUPPLIER,
           isActive: true,
         },
       });

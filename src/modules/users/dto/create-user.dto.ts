@@ -9,6 +9,7 @@ import {
   IsUUID,
   Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { UserRole } from '@prisma/client';
 
 export class CreateUserDto {
@@ -23,6 +24,8 @@ export class CreateUserDto {
       'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character',
   })
   @IsString()
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsOptional()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
@@ -62,4 +65,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsUUID()
   siteId?: string;
+
+  @ApiPropertyOptional({
+    enum: ['PERSONAL', 'BUSINESS'],
+    example: 'PERSONAL',
+    description: 'Account type for CLIENT role',
+  })
+  @IsOptional()
+  @IsString()
+  accountType?: string;
 }
