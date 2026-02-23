@@ -20,6 +20,7 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { UsersModule } from './modules/users/users.module';
 import { MailModule } from './modules/mail/mail.module';
+import { SeederModule } from './modules/seeder/seeder.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { MailModule } from './modules/mail/mail.module';
     AuditLogsModule,
     WebhooksModule,
     MailModule,
+    SeederModule,
   ],
   controllers: [AppController],
   providers: [AppService],
