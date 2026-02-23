@@ -96,7 +96,7 @@ enum AssetType {
 }
 
 enum ProductCategory{
- VEGETABLES
+  VEGETABLES
   FRESH_FRUITS
   MEAT
   DAIRY

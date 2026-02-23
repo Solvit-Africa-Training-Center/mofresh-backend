@@ -31,14 +31,15 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('ColdRooms (Infrastructure)')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cold-rooms')
 export class ColdRoomsController {
   constructor(private readonly coldRoomService: ColdRoomService) {}
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Register a new cold storage unit' })
@@ -53,6 +54,15 @@ export class ColdRoomsController {
     return this.coldRoomService.create(dto, user, image);
   }
 
+  @Public()
+  @Get('discovery')
+  @ApiOperation({ summary: 'Discover available cold rooms (Public)' })
+  discover(@Query('siteId') siteId?: string) {
+    return this.coldRoomService.findAll(undefined, siteId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'List cold rooms (filtered by site for managers)' })
@@ -61,6 +71,8 @@ export class ColdRoomsController {
     return this.coldRoomService.findAll(user, siteId);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get details for a specific cold room' })
@@ -69,6 +81,8 @@ export class ColdRoomsController {
     return this.coldRoomService.findOne(id, user);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id/occupancy')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get real-time space availability' })
@@ -80,6 +94,8 @@ export class ColdRoomsController {
     return this.coldRoomService.getOccupancyDetails(id, user);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update capacity or temperature' })
@@ -95,6 +111,8 @@ export class ColdRoomsController {
     return this.coldRoomService.update(id, dto, user, image);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Archive/Soft-delete a cold room' })

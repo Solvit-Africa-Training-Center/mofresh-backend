@@ -50,7 +50,6 @@ describe('ProductsService', () => {
     status: 'AVAILABLE',
   };
 
-  // This mock simulates both the main prisma client and the transaction 'tx' object
   const mockPrismaService = {
     product: {
       findUnique: jest.fn(),
@@ -143,7 +142,6 @@ describe('ProductsService', () => {
 
   describe('update', () => {
     it('should block manager from changing the siteId of a product', async () => {
-      // We use jest.spyOn to mock the internal call to findOne
       jest.spyOn(service, 'findOne').mockResolvedValue(mockProduct as any);
 
       const updateDto = { siteId: 'site-b' };
@@ -169,14 +167,12 @@ describe('ProductsService', () => {
 
       await service.update('prod-uuid-999', { coldRoomId: 'room-new' }, mockManager as any);
 
-      // Verify Old Room decrement
       expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(expect.objectContaining({
           where: { id: 'room-uuid-456' },
           data: { usedCapacityKg: { decrement: 50 } },
         }),
       );
 
-      // Verify New Room increment
       expect(mockPrismaService.coldRoom.update).toHaveBeenCalledWith(expect.objectContaining({
           where: { id: 'room-new' },
           data: { usedCapacityKg: { increment: 50 } },

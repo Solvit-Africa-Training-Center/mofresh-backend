@@ -30,28 +30,29 @@ export class ColdAssetsService {
     private cloudinaryService: CloudinaryService,
   ) {}
 
-  /**
-   * Helper to apply role-based filtering and client location filtering.
-   */
   private applyRoleFilters(user: CurrentUserPayload, requestedSiteId?: string): any {
     const where: any = { deletedAt: null };
-
-    if (user.role === UserRole.SITE_MANAGER) {
-      // 1. Site Manager: Strictly limited to their own site
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.siteId = user.siteId;
-    } else if (user.role === UserRole.CLIENT) {
-      // 2. Client: Only sees available assets. Can filter by location (siteId)
+    if (!user) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       where.status = AssetStatus.AVAILABLE;
-      if (requestedSiteId) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        where.siteId = requestedSiteId;
-      }
-    } else if (user.role === UserRole.SUPER_ADMIN && requestedSiteId) {
-      // 3. Admin: Sees everything, but can choose to filter by site
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      where.siteId = requestedSiteId;
+      if (requestedSiteId) where.siteId = requestedSiteId;
+      return where;
+    }
+
+    if (user.role === UserRole.SITE_MANAGER || user.role === UserRole.CLIENT) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      where.siteId = user.siteId;
+      if (user.role === UserRole.CLIENT) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        where.status = AssetStatus.AVAILABLE;
+      }
+    } else if (user.role === UserRole.SUPER_ADMIN) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (requestedSiteId) where.siteId = requestedSiteId;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      where.id = 'none';
     }
 
     return where;
@@ -101,7 +102,7 @@ export class ColdAssetsService {
     return new TricycleEntity(asset);
   }
 
-  async findTricycles(user: CurrentUserPayload, siteId?: string) {
+  async findTricycles(user?: CurrentUserPayload, siteId?: string) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const where = this.applyRoleFilters(user, siteId);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -142,7 +143,7 @@ export class ColdAssetsService {
     return new ColdBoxEntity(asset);
   }
 
-  async findColdBoxes(user: CurrentUserPayload, siteId?: string) {
+  async findColdBoxes(user?: CurrentUserPayload, siteId?: string) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const where = this.applyRoleFilters(user, siteId);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -183,7 +184,7 @@ export class ColdAssetsService {
     return new ColdPlateEntity(asset);
   }
 
-  async findColdPlates(user: CurrentUserPayload, siteId?: string) {
+  async findColdPlates(user?: CurrentUserPayload, siteId?: string) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const where = this.applyRoleFilters(user, siteId);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -285,8 +286,6 @@ export class ColdAssetsService {
     await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'COLDPLATE', id);
     return new ColdPlateEntity(updated);
   }
-
-  // --- SHARED OPERATIONS ---
 
   async updateStatus(
     type: 'tricycle' | 'coldBox' | 'coldPlate' | 'coldRoom',

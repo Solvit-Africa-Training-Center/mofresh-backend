@@ -77,7 +77,7 @@ describe('ProductsController', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('findAll(Public)', () => {
     it('should call service.findAll with query filters and user context', async () => {
       const siteId = 'site-a';
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -85,10 +85,10 @@ describe('ProductsController', () => {
       mockProductsService.findAll.mockResolvedValue([mockProduct]);
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const result = await controller.findAll(mockUser as any, siteId, category);
+      const result = await controller.findAll(siteId, ProductCategory.VEGETABLES);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.findAll).toHaveBeenCalledWith(mockUser, siteId, category);
+      expect(service.findAll).toHaveBeenCalledWith(undefined, siteId, category);
       expect(result).toEqual([mockProduct]);
     });
   });
