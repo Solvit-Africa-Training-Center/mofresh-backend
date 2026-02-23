@@ -19,7 +19,7 @@ export class StockMovementsService {
   ) {}
 
   async recordMovement(dto: CreateStockMovementDto, user: CurrentUserPayload) {
-    const { productId, coldRoomId, quantityKg, movementType, reason } = dto;
+    const { productId, coldRoomId, quantityKg, movementType, reason, supplierId } = dto;
 
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundException('Product not found');
@@ -31,6 +31,11 @@ export class StockMovementsService {
       if (product.siteId !== user.siteId || coldRoom.siteId !== user.siteId) {
         throw new ForbiddenException('You can only record movements for your own site.');
       }
+    }
+
+    let finalReason = reason;
+    if (movementType === StockMovementType.IN && supplierId) {
+      finalReason = `SUPPLIER_ID:${supplierId} | ${reason || 'Supply delivery'}`;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -47,6 +52,13 @@ export class StockMovementsService {
       await tx.product.update({
         where: { id: productId },
         data: { quantityKg: newQuantity },
+      });
+
+      // Update Cold Room used capacity
+      const capacityAdjustment = movementType === StockMovementType.IN ? quantityKg : -quantityKg;
+      await tx.coldRoom.update({
+        where: { id: coldRoomId },
+        data: { usedCapacityKg: { increment: capacityAdjustment } },
       });
 
       const movement = await tx.stockMovement.create({
@@ -71,7 +83,7 @@ export class StockMovementsService {
             productId,
             movementType,
             quantityKg,
-            reason,
+            reason: finalReason,
             newQuantity,
           },
           timestamp: new Date(),
@@ -80,6 +92,42 @@ export class StockMovementsService {
 
       return movement;
     });
+  }
+
+  async findSupplierHistory(user: CurrentUserPayload, filters: StockMovementQueryDto) {
+    const { page = 1, limit = 20 } = filters;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.StockMovementWhereInput = {
+      movementType: StockMovementType.IN,
+      reason: {
+        contains: `SUPPLIER_ID:${user.userId}`,
+      },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.stockMovement.findMany({
+        where,
+        include: {
+          product: { select: { name: true, unit: true } },
+          coldRoom: {
+            select: {
+              name: true,
+              site: { select: { name: true } },
+            },
+          },
+        },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.stockMovement.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async revertMovement(movementId: string, user: CurrentUserPayload) {
@@ -112,6 +160,11 @@ export class StockMovementsService {
         data: { quantityKg: { increment: adjustment } },
       });
 
+      await tx.coldRoom.update({
+        where: { id: originalMovement.coldRoomId },
+        data: { usedCapacityKg: { increment: adjustment } },
+      });
+
       const reversalMovement = await tx.stockMovement.create({
         data: {
           productId: originalMovement.productId,
@@ -134,6 +187,7 @@ export class StockMovementsService {
             originalMovementId: movementId,
             originalMovementType: originalMovement.movementType,
             quantityKg: originalMovement.quantityKg,
+            revertedBy: user.userId,
           },
           timestamp: new Date(),
         },

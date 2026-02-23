@@ -10,6 +10,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -28,16 +29,16 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Public } from '@/common/decorators';
 
 @ApiTags('Cold Assets (Logistics)')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cold-assets')
 export class ColdAssetsController {
   constructor(private readonly assetsService: ColdAssetsService) {}
 
   // 1. TRICYCLES
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('tricycles')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new tricycle' })
@@ -50,7 +51,8 @@ export class ColdAssetsController {
   ) {
     return this.assetsService.createTricycle(dto, user, image);
   }
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('tricycles')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get tricycles (Admin sees all, Manager sees their site)' })
@@ -58,6 +60,15 @@ export class ColdAssetsController {
     return this.assetsService.findTricycles(user);
   }
 
+  @Public()
+  @Get('tricycles/discovery')
+  @ApiOperation({ summary: 'Discover available tricycles (Public)' })
+  discoverTricycles(@Query('siteId') siteId?: string) {
+    return this.assetsService.findTricycles(undefined, siteId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch('tricycles/:id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update tricycle details' })
@@ -73,7 +84,8 @@ export class ColdAssetsController {
   }
 
   // 2. COLD BOXES
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('boxes')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new cold box' })
@@ -87,6 +99,8 @@ export class ColdAssetsController {
     return this.assetsService.createColdBox(dto, user, image);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('boxes')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get cold boxes (Filtered by user scope)' })
@@ -94,6 +108,15 @@ export class ColdAssetsController {
     return this.assetsService.findColdBoxes(user);
   }
 
+  @Public()
+  @Get('boxes/discovery')
+  @ApiOperation({ summary: 'Landing Page: Get available cold boxes' })
+  getBoxesPublic() {
+    return this.assetsService.findColdBoxes(undefined);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch('boxes/:id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update cold box details' })
@@ -109,7 +132,8 @@ export class ColdAssetsController {
   }
 
   // 3. COLD PLATES
-
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post('plates')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Create a new cold plate' })
@@ -123,6 +147,8 @@ export class ColdAssetsController {
     return this.assetsService.createColdPlate(dto, user, image);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('plates')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get cold plates (Filtered by user scope)' })
@@ -130,6 +156,15 @@ export class ColdAssetsController {
     return this.assetsService.findColdPlates(user);
   }
 
+  @Public()
+  @Get('plates/discovery')
+  @ApiOperation({ summary: 'Landing Page: Get available cold plates' })
+  getPlatesPublic() {
+    return this.assetsService.findColdPlates(undefined);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch('plates/:id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update cold plate details' })

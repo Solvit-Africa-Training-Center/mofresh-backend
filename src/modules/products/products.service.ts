@@ -18,7 +18,6 @@ import {
   ProductCategory,
 } from '@prisma/client';
 import { CurrentUserPayload } from '@/common/decorators/current-user.decorator';
-import { isUUID } from 'class-validator';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
@@ -109,7 +108,7 @@ export class ProductsService {
   }
 
   async findAll(
-    user: CurrentUserPayload,
+    user?: CurrentUserPayload,
     siteId?: string,
     category?: ProductCategory,
   ): Promise<ProductEntity[]> {
@@ -119,24 +118,15 @@ export class ProductsService {
       where.category = category;
     }
 
-    if (user.role === UserRole.SITE_MANAGER) {
-      if (siteId && siteId !== user.siteId) {
-        throw new ForbiddenException(
-          `Unauthorized access: You are only managed to access products for site ${user.siteId}`,
-        );
+    if (!user) {
+      where.status = ProductStatus.IN_STOCK;
+      if (siteId) where.siteId = siteId;
+    } else {
+      if (user.role === UserRole.SUPER_ADMIN) {
+        if (siteId) where.siteId = siteId;
+      } else {
+        where.siteId = user.siteId;
       }
-      where.siteId = user.siteId;
-    } else if (user.role === UserRole.SUPER_ADMIN && siteId) {
-      if (!isUUID(siteId)) {
-        throw new BadRequestException(`Invalid siteId format: ${siteId}`);
-      }
-      const siteExists = await this.prisma.site.findUnique({
-        where: { id: siteId },
-      });
-      if (!siteExists) {
-        throw new NotFoundException(`Site with ID ${siteId} does not exist`);
-      }
-      where.siteId = siteId;
     }
 
     const products = await this.prisma.product.findMany({
@@ -150,7 +140,7 @@ export class ProductsService {
     return products.map((p) => new ProductEntity(p));
   }
 
-  async findOne(id: string, user: CurrentUserPayload): Promise<ProductEntity> {
+  async findOne(id: string, user?: CurrentUserPayload): Promise<ProductEntity> {
     const product = await this.prisma.product.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -162,7 +152,11 @@ export class ProductsService {
 
     if (!product) throw new NotFoundException(`Product with ID ${id} not found`);
 
-    if (user.role === UserRole.SITE_MANAGER && product.siteId !== user.siteId) {
+    if (!user) {
+      if (product.status !== ProductStatus.IN_STOCK) {
+        throw new ForbiddenException('This product is currently not available');
+      }
+    } else if (user.role !== UserRole.SUPER_ADMIN && product.siteId !== user.siteId) {
       throw new ForbiddenException(
         'You do not have permission to access products outside your site',
       );
@@ -198,7 +192,6 @@ export class ProductsService {
           throw new BadRequestException('Target cold room does not belong to the correct site');
         }
 
-        // Check Status and Space
         if (targetRoom.status !== 'AVAILABLE') {
           throw new BadRequestException(`Target room is ${targetRoom.status.toLowerCase()}`);
         }
@@ -246,11 +239,9 @@ export class ProductsService {
     dto: AdjustStockDto,
     user: CurrentUserPayload,
   ): Promise<ProductEntity> {
-    // Validate user has access to this product
     await this.findOne(id, user);
 
     return this.prisma.$transaction(async (tx) => {
-      // Fetch the current product within transaction
       const product = await tx.product.findUnique({
         where: { id },
       });
@@ -283,7 +274,6 @@ export class ProductsService {
         }
       }
 
-      // Update product with new quantity and status
       const updated = await tx.product.update({
         where: { id },
         data: {
@@ -292,13 +282,11 @@ export class ProductsService {
         },
       });
 
-      // Update cold room capacity
       await tx.coldRoom.update({
         where: { id: product.coldRoomId },
         data: { usedCapacityKg: { increment: weightChange } },
       });
 
-      // Record stock movement
       await tx.stockMovement.create({
         data: {
           productId: id,
