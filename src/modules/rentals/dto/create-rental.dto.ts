@@ -91,5 +91,24 @@ export class CreateRentalDto {
   @IsOptional()
   @IsNumber()
   @Min(0.01)
+  @IsNotEmpty()
   capacityNeededKg?: number;
+
+  @ApiProperty({
+    description: 'Site ID where the asset is located (required for public requests)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  siteId?: string;
+
+  @ApiProperty({
+    description: 'Client ID requesting the rental (required for public requests)',
+    required: false,
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   Controller,
@@ -25,14 +26,16 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AssetType, RentalStatus, UserRole } from '@prisma/client';
 import { RolesGuard } from '../../common/guards';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Rentals')
 @Controller('rentals')
 @UseGuards(RolesGuard)
 @ApiBearerAuth()
 export class RentalsController {
-  constructor(private readonly rentalsService: RentalsService) {}
+  constructor(private readonly rentalsService: RentalsService) { }
 
+  @Public()
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @Roles(UserRole.CLIENT)
@@ -41,13 +44,21 @@ export class RentalsController {
   @ApiResponse({ status: 400, description: 'Bad request Invalid data or asset not available' })
   @ApiResponse({ status: 401, description: 'Unauthorized  Authentication required' })
   @ApiResponse({ status: 403, description: 'Forbidden  Insufficient permissions' })
-  async create(@Body() dto: CreateRentalDto, @CurrentUser() user: CurrentUserPayload) {
-    if (!user.siteId) {
-      throw new BadRequestException('Client must belong to a site');
+  async create(@Body() dto: CreateRentalDto, @CurrentUser() user?: CurrentUserPayload) {
+    const userId = user?.userId || dto.clientId;
+    const siteId = user?.siteId || dto.siteId;
+
+    if (!userId) {
+      throw new BadRequestException('clientId is required for public rental requests');
     }
-    return this.rentalsService.createRental(user.userId, user.siteId, dto);
+    if (!siteId) {
+      throw new BadRequestException('siteId is required for public rental requests');
+    }
+
+    return this.rentalsService.createRental(userId, siteId, dto);
   }
 
+  @Public()
   @Get('available-assets')
   @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get available assets by type for rental' })
@@ -62,14 +73,16 @@ export class RentalsController {
   })
   getAvailableAssets(
     @Query() query: GetAvailableAssetsDto,
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() user?: CurrentUserPayload,
   ) {
-    if (!user.siteId) {
-      throw new BadRequestException('User must belong to a site');
+    const siteId = user?.siteId || query.siteId;
+    if (!siteId) {
+      throw new BadRequestException('siteId is required to fetch available assets');
     }
-    return this.rentalsService.getAvailableAssetsByType(query.assetType, user.siteId);
+    return this.rentalsService.getAvailableAssetsByType(query.assetType, siteId);
   }
 
+  @Public()
   @Get()
   @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get all rentals ' })
@@ -78,26 +91,29 @@ export class RentalsController {
   @ApiQuery({ name: 'status', required: false, enum: RentalStatus })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'siteId', required: false, type: String })
   findAll(
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() user?: CurrentUserPayload,
     @Query('status') status?: RentalStatus,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('siteId') querySiteId?: string,
   ) {
-    const siteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
+    const siteId = user?.role === UserRole.SUPER_ADMIN ? undefined : (user?.siteId || querySiteId);
     const parsedPage = page ? Number(page) : undefined;
     const parsedLimit = limit ? Number(limit) : undefined;
 
     return this.rentalsService.findAllRental(
       siteId,
-      user.role as UserRole,
-      user.userId,
+      user?.role as UserRole,
+      user?.userId,
       status,
       parsedPage,
       parsedLimit,
     );
   }
 
+  @Public()
   @Get(':id')
   @Roles(UserRole.CLIENT, UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get rental by ID ' })
@@ -105,9 +121,9 @@ export class RentalsController {
   @ApiResponse({ status: 200, description: 'Rental found' })
   @ApiResponse({ status: 401, description: 'Unauthorized - Authentication required' })
   @ApiResponse({ status: 404, description: 'Rental not found' })
-  findOne(@Param('id') id: string, @CurrentUser() user: CurrentUserPayload) {
-    const siteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.rentalsService.findOneRental(id, siteId, user.role as UserRole, user.userId);
+  findOne(@Param('id') id: string, @CurrentUser() user?: CurrentUserPayload) {
+    const siteId = user?.role === UserRole.SUPER_ADMIN ? undefined : user?.siteId;
+    return this.rentalsService.findOneRental(id, siteId, user?.role as UserRole, user?.userId);
   }
 
   @Patch(':id/approve')

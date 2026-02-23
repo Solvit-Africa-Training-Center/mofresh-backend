@@ -76,23 +76,24 @@ export class ColdRoomService {
     return new ColdRoomEntity(room);
   }
 
-  async findAll(user: CurrentUserPayload, siteId?: string): Promise<ColdRoomEntity[]> {
+  async findAll(user?: CurrentUserPayload, siteId?: string): Promise<ColdRoomEntity[]> {
     const where: Prisma.ColdRoomWhereInput = { deletedAt: null };
-    if (user.role === UserRole.SITE_MANAGER) {
-      if (siteId && siteId !== user.siteId) {
-        throw new ForbiddenException(
-          `Unauthorized access: You are only allowed to view rooms for site ${user.siteId}`,
-        );
-      }
-      where.siteId = user.siteId;
-    } else if (siteId) {
-      where.siteId = siteId;
-    }
 
+    if (!user) {
+      where.status = 'AVAILABLE';
+      if (siteId) where.siteId = siteId;
+    } else if (user.role === UserRole.SITE_MANAGER || user.role === UserRole.CLIENT) {
+      where.siteId = user.siteId;
+      if (user.role === UserRole.CLIENT) {
+        where.status = 'AVAILABLE';
+      }
+    } else if (user.role === UserRole.SUPER_ADMIN) {
+      if (siteId) where.siteId = siteId;
+    }
     const rooms = await this.prisma.coldRoom.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
     });
+
     return rooms.map((room) => new ColdRoomEntity(room));
   }
 

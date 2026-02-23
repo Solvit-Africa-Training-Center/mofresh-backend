@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   BadRequestException,
   Injectable,
@@ -30,17 +31,28 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly db: PrismaService,
     private readonly invoicesService: InvoicesService,
-  ) {}
+  ) { }
 
   private getRoleBasedFilter(
     siteId: string | undefined,
-    userRole: UserRole,
-    userId: string,
+    userRole?: UserRole,
+    userId?: string,
   ): Prisma.RentalWhereInput {
     if (userRole === UserRole.SUPER_ADMIN) return {};
-    if (!siteId) throw new BadRequestException('User must belong to a site');
-    if (userRole === UserRole.SITE_MANAGER) return { siteId };
-    return { siteId, clientId: userId };
+    if (userRole === UserRole.SITE_MANAGER) {
+      if (!siteId) throw new BadRequestException('Site manager must belong to a site');
+      return { siteId };
+    }
+    if (userRole === UserRole.CLIENT) {
+      if (!siteId) throw new BadRequestException('Client must belong to a site');
+      return { siteId, clientId: userId };
+    }
+
+    // Public access or unauthenticated
+    const filter: Prisma.RentalWhereInput = {};
+    if (siteId) filter.siteId = siteId;
+    if (userId) filter.clientId = userId;
+    return filter;
   }
 
   private parseAndValidateDates(dto: CreateRentalDto) {
@@ -371,8 +383,8 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
 
   async findAllRental(
     siteId: string | undefined,
-    userRole: UserRole,
-    userId: string,
+    userRole?: UserRole,
+    userId?: string,
     status?: RentalStatus,
     page?: number,
     limit?: number,
@@ -401,8 +413,8 @@ export class RentalsService implements OnModuleInit, OnModuleDestroy {
   async findOneRental(
     rentalId: string,
     siteId: string | undefined,
-    userRole: UserRole,
-    userId: string,
+    userRole?: UserRole,
+    userId?: string,
   ) {
     const whereClause: Prisma.RentalWhereInput = {
       id: rentalId,

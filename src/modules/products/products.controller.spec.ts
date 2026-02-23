@@ -19,7 +19,6 @@ describe('ProductsController', () => {
   const mockProduct = {
     id: 'prod-uuid-999',
     name: 'Organic Carrots',
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     category: ProductCategory.VEGETABLES,
     quantityKg: 100,
     siteId: 'site-a',
@@ -57,7 +56,6 @@ describe('ProductsController', () => {
     it('should call service.create with dto and user context', async () => {
       const dto: CreateProductDto = {
         name: 'Organic Carrots',
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         category: ProductCategory.VEGETABLES,
         quantityKg: 50,
         unit: 'KG',
@@ -77,18 +75,16 @@ describe('ProductsController', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('findAll(Public)', () => {
     it('should call service.findAll with query filters and user context', async () => {
       const siteId = 'site-a';
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const category = ProductCategory.VEGETABLES;
       mockProductsService.findAll.mockResolvedValue([mockProduct]);
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-      const result = await controller.findAll(mockUser as any, siteId, category);
+      const result = await controller.findAll(siteId, ProductCategory.VEGETABLES);
 
       // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(service.findAll).toHaveBeenCalledWith(mockUser, siteId, category);
+      expect(service.findAll).toHaveBeenCalledWith(undefined, siteId, category);
       expect(result).toEqual([mockProduct]);
     });
   });

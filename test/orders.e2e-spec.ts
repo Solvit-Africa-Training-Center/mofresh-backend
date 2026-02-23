@@ -117,7 +117,7 @@ describe('Orders (e2e)', () => {
     const product = await prisma.product.create({
       data: {
         name: 'Test Product',
-        category: 'Dairy',
+        category: 'DAIRY',
         unit: 'kg',
         quantityKg: 100,
         sellingPricePerUnit: 1000,
