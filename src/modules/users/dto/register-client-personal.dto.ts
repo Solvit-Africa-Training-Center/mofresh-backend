@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
@@ -8,6 +9,7 @@ import {
   IsOptional,
   IsUUID,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class RegisterClientPersonalDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -36,17 +38,28 @@ export class RegisterClientPersonalDto {
       'Password must be at least 8 characters and contain uppercase, lowercase, number, and special character',
   })
   @IsString()
-  @IsNotEmpty()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
     message: 'Password must contain uppercase, lowercase, number, and special character',
   })
-  password: string;
+  password?: string;
 
   @ApiProperty({ example: 'uuid-of-site', required: false })
   @IsOptional()
   @IsUUID()
   siteId?: string;
+
+  @ApiProperty({
+    enum: ['PERSONAL', 'BUSINESS'],
+    example: 'PERSONAL',
+    description: 'Account type for CLIENT role',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  accountType?: string;
 
   @ApiProperty({
     type: 'string',

@@ -19,7 +19,7 @@ enum UserRole {
   CLIENT
 }
 
-enum ClientAccountType {
+enum AccountType {
   PERSONAL
   BUSINESS
 }
@@ -126,7 +126,7 @@ model User {
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
   isProfileComplete     Boolean           @default(false)
-  clientAccountType     ClientAccountType?
+  accountType           AccountType?
   businessName          String?
   tinNumber             String?
   businessCertificateDocument String?     // Cloudinary URL

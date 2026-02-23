@@ -20,6 +20,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Sites')
 @Controller('sites')
@@ -55,6 +56,7 @@ export class SitesController {
   }
 
   @Get()
+  @Public()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER, UserRole.SUPPLIER, UserRole.CLIENT)
   @ApiOperation({ summary: 'Get all sites' })
   @ApiResponse({
@@ -63,10 +65,10 @@ export class SitesController {
     type: [SiteEntity],
   })
   async findAll(
-    @CurrentUser() user: CurrentUserPayload,
+    @CurrentUser() user?: CurrentUserPayload,
   ): Promise<{ status: string; message: string; data: SiteEntity[] }> {
     try {
-      const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId : undefined;
+      const siteId = user?.role === UserRole.SITE_MANAGER ? user.siteId : undefined;
       const sites = await this.sitesService.findAll(siteId);
 
       return {
