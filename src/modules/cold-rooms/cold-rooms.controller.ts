@@ -9,17 +9,13 @@ import {
   ParseUUIDPipe,
   UseGuards,
   Delete,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
   ApiBearerAuth,
-  ApiConsumes,
 } from '@nestjs/swagger';
 import { ColdRoomService } from './cold-rooms.service';
 import { ColdRoomEntity } from './entities/cold-room.entity';
@@ -31,38 +27,22 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
-import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('ColdRooms (Infrastructure)')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('cold-rooms')
 export class ColdRoomsController {
   constructor(private readonly coldRoomService: ColdRoomService) {}
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Register a new cold storage unit' })
-  @ApiConsumes('multipart/form-data')
   @ApiCreatedResponse({ type: ColdRoomEntity })
-  @UseInterceptors(FileInterceptor('image'))
-  async create(
-    @Body() dto: CreateColdRoomDto,
-    @CurrentUser() user: CurrentUserPayload,
-    @UploadedFile() image?: Express.Multer.File,
-  ) {
-    return this.coldRoomService.create(dto, user, image);
+  async create(@Body() dto: CreateColdRoomDto, @CurrentUser() user: CurrentUserPayload) {
+    return this.coldRoomService.create(dto, user);
   }
 
-  @Public()
-  @Get('discovery')
-  @ApiOperation({ summary: 'Discover available cold rooms (Public)' })
-  discover(@Query('siteId') siteId?: string) {
-    return this.coldRoomService.findAll(undefined, siteId);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'List cold rooms (filtered by site for managers)' })
@@ -71,18 +51,6 @@ export class ColdRoomsController {
     return this.coldRoomService.findAll(user, siteId);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
-  @ApiOperation({ summary: 'Get details for a specific cold room' })
-  @ApiOkResponse({ type: ColdRoomEntity })
-  async findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.coldRoomService.findOne(id, user);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get(':id/occupancy')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get real-time space availability' })
@@ -94,29 +62,22 @@ export class ColdRoomsController {
     return this.coldRoomService.getOccupancyDetails(id, user);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Update capacity or temperature' })
-  @ApiConsumes('multipart/form-data')
   @ApiOkResponse({ type: ColdRoomEntity })
-  @UseInterceptors(FileInterceptor('image'))
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateColdRoomDto,
     @CurrentUser() user: CurrentUserPayload,
-    @UploadedFile() image?: Express.Multer.File,
   ) {
-    return this.coldRoomService.update(id, dto, user, image);
+    return this.coldRoomService.update(id, dto, user);
   }
 
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Archive/Soft-delete a cold room' })
   async remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: CurrentUserPayload) {
-    return this.coldRoomService.remove('coldRoom', id, user);
+    return this.coldRoomService.remove(id, user);
   }
 }

@@ -1,7 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min, IsEnum } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ProductCategory } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'Fresh Tomatoes' })
@@ -9,15 +7,14 @@ export class CreateProductDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ enum: ProductCategory, example: 'FRUITS_VEGETABLES' })
-  @IsEnum(ProductCategory)
-  @IsNotEmpty({ message: 'Category must be provided' })
-  category: ProductCategory;
+  @ApiProperty({ example: 'Vegetables', nullable: true })
+  @IsString()
+  @IsOptional()
+  category?: string;
 
   @ApiProperty({ example: 500 })
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
   quantityKg: number;
 
   @ApiProperty({ example: 'KG' })
@@ -40,18 +37,14 @@ export class CreateProductDto {
   @ApiProperty({ example: 1200.5 })
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
   sellingPricePerUnit: number;
 
-  @ApiPropertyOptional({
-    type: 'string',
-    format: 'binary',
-    description: 'Product image file',
-  })
+  @ApiProperty({ example: 'https://mofresh.rw/images/tomato.jpg', required: false })
   @IsOptional()
-  image?: any;
+  @IsString()
+  imageUrl?: string;
 
-  @ApiPropertyOptional({ example: 'Locally sourced from Huye District' })
+  @ApiProperty({ example: 'Locally sourced from Huye District', required: false })
   @IsOptional()
   @IsString()
   description?: string;

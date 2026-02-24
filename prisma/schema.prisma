@@ -95,15 +95,6 @@ enum AssetType {
   COLD_ROOM
 }
 
-enum ProductCategory{
-  VEGETABLES
-  FRESH_FRUITS
-  MEAT
-  DAIRY
-  MEDECINE
-  PHARMACEUTICAL
-}
-
 enum TricycleCategory {
   DAIRY
   MEAT
@@ -215,8 +206,6 @@ model ColdRoom {
   temperatureMin  Float
   temperatureMax  Float?
   powerType       PowerType
-  status          AssetStatus      @default(AVAILABLE)
-  imageUrl        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -300,7 +289,7 @@ model Tricycle {
 model Product {
   id                  String           @id @default(uuid())
   name                String
-  category            ProductCategory
+  category            String?
   quantityKg          Float
   unit                String
   supplierId          String

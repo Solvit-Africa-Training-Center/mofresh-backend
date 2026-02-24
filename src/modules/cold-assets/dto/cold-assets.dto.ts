@@ -20,14 +20,11 @@ export class CreateTricycleDto {
   @IsEnum(TricycleCategory)
   category: TricycleCategory;
 
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Tricycle image file (will be uploaded to Cloudinary)',
-  })
+  // Added imageUrl to match new updated Prisma schema
+  @ApiProperty({ example: 'https://example.com/tricycle.jpg', required: false })
   @IsOptional()
-  image?: Express.Multer.File;
+  @IsString()
+  imageUrl?: string;
 }
 
 export class CreateColdBoxDto {
@@ -48,14 +45,11 @@ export class CreateColdBoxDto {
   @IsString()
   location: string;
 
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Cold box image file (will be uploaded to Cloudinary)',
-  })
+  // Added imageUrl to match new updated Prisma schema
+  @ApiProperty({ example: 'https://example.com/box.jpg', required: false })
   @IsOptional()
-  image?: Express.Multer.File;
+  @IsString()
+  imageUrl?: string;
 }
 
 export class CreateColdPlateDto {
@@ -72,87 +66,11 @@ export class CreateColdPlateDto {
   @IsUUID()
   siteId: string;
 
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Cold plate image file (will be uploaded to Cloudinary)',
-  })
+  // Added imageUrl to match new updated Prisma schema
+  @ApiProperty({ example: 'https://example.com/plate.jpg', required: false })
   @IsOptional()
-  image?: Express.Multer.File;
-}
-
-export class UpdateTricycleDto {
-  @ApiProperty({ example: 'RAA 123 A', required: false })
   @IsString()
-  @IsOptional()
-  plateNumber?: string;
-
-  @ApiProperty({ example: '200kg', required: false })
-  @IsString()
-  @IsOptional()
-  capacity?: string;
-
-  @ApiProperty({ enum: TricycleCategory, required: false })
-  @IsEnum(TricycleCategory)
-  @IsOptional()
-  category?: TricycleCategory;
-
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Tricycle image file (will be uploaded to Cloudinary)',
-  })
-  @IsOptional()
-  image?: Express.Multer.File;
-}
-
-export class UpdateColdBoxDto {
-  @ApiProperty({ example: 'CB-001', required: false })
-  @IsString()
-  @IsOptional()
-  identificationNumber?: string;
-
-  @ApiProperty({ example: '50L', required: false })
-  @IsString()
-  @IsOptional()
-  sizeOrCapacity?: string;
-
-  @ApiProperty({ example: 'Zone B-4', required: false })
-  @IsString()
-  @IsOptional()
-  location?: string;
-
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Cold box image file (will be uploaded to Cloudinary)',
-  })
-  @IsOptional()
-  image?: Express.Multer.File;
-}
-
-export class UpdateColdPlateDto {
-  @ApiProperty({ example: 'CP-500', required: false })
-  @IsString()
-  @IsOptional()
-  identificationNumber?: string;
-
-  @ApiProperty({ example: 'PCM-23', required: false })
-  @IsString()
-  @IsOptional()
-  coolingSpecification?: string;
-
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    required: false,
-    description: 'Cold plate image file (will be uploaded to Cloudinary)',
-  })
-  @IsOptional()
-  image?: Express.Multer.File;
+  imageUrl?: string;
 }
 
 export class UpdateAssetStatusDto {

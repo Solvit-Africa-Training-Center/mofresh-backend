@@ -9,39 +9,21 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { ProductEntity } from './entities/product.entity';
-import {
-  ProductStatus,
-  StockMovementType,
-  UserRole,
-  AuditAction,
-  Prisma,
-  ProductCategory,
-} from '@prisma/client';
+import { ProductStatus, StockMovementType, UserRole, AuditAction, Prisma } from '@prisma/client';
 import { CurrentUserPayload } from '@/common/decorators/current-user.decorator';
+import { isUUID } from 'class-validator';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
-import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditLogsService,
-    private cloudinaryService: CloudinaryService,
   ) {}
 
-  async create(
-    dto: CreateProductDto,
-    user: CurrentUserPayload,
-    image?: Express.Multer.File,
-  ): Promise<ProductEntity> {
+  async create(dto: CreateProductDto, user: CurrentUserPayload): Promise<ProductEntity> {
     if (user.role === UserRole.SITE_MANAGER) {
       dto.siteId = user.siteId;
-    }
-
-    let imageUrl: string | undefined;
-    if (image) {
-      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-products');
-      imageUrl = uploadResult.secure_url as string;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -54,22 +36,12 @@ export class ProductsService {
         throw new BadRequestException('Selected cold room does not belong to the product site');
       }
 
-      if (room.status !== 'AVAILABLE') {
-        throw new BadRequestException(
-          `Cannot add product: Cold room is currently ${room.status.toLowerCase()}`,
-        );
-      }
-
       if (room.usedCapacityKg + dto.quantityKg > room.totalCapacityKg) {
         throw new BadRequestException('Not enough space in the selected cold room');
       }
 
       const product = await tx.product.create({
-        data: {
-          ...dto,
-          ...(imageUrl && { imageUrl }),
-          status: ProductStatus.IN_STOCK,
-        },
+        data: { ...dto, status: ProductStatus.IN_STOCK },
       });
 
       await tx.stockMovement.create({
@@ -107,29 +79,33 @@ export class ProductsService {
     });
   }
 
-  async findAll(
-    user?: CurrentUserPayload,
-    siteId?: string,
-    category?: ProductCategory,
-  ): Promise<ProductEntity[]> {
-    const where: Prisma.ProductWhereInput = { deletedAt: null };
+  async findAll(user: CurrentUserPayload, siteId?: string): Promise<ProductEntity[]> {
+    const where: any = { deletedAt: null };
 
-    if (category) {
-      where.category = category;
-    }
-
-    if (!user) {
-      where.status = ProductStatus.IN_STOCK;
-      if (siteId) where.siteId = siteId;
-    } else {
-      if (user.role === UserRole.SUPER_ADMIN) {
-        if (siteId) where.siteId = siteId;
-      } else {
-        where.siteId = user.siteId;
+    if (user.role === UserRole.SITE_MANAGER) {
+      if (siteId && siteId !== user.siteId) {
+        throw new ForbiddenException(
+          `Unauthorized access: You are only managed to access products for site ${user.siteId}`,
+        );
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      where.siteId = user.siteId;
+    } else if (user.role === UserRole.SUPER_ADMIN && siteId) {
+      if (!isUUID(siteId)) {
+        throw new BadRequestException(`Invalid siteId format: ${siteId}`);
+      }
+      const siteExists = await this.prisma.site.findUnique({
+        where: { id: siteId },
+      });
+      if (!siteExists) {
+        throw new NotFoundException(`Site with ID ${siteId} does not exist`);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      where.siteId = siteId;
     }
 
     const products = await this.prisma.product.findMany({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       where,
       include: {
         site: { select: { name: true } },
@@ -140,7 +116,7 @@ export class ProductsService {
     return products.map((p) => new ProductEntity(p));
   }
 
-  async findOne(id: string, user?: CurrentUserPayload): Promise<ProductEntity> {
+  async findOne(id: string, user: CurrentUserPayload): Promise<ProductEntity> {
     const product = await this.prisma.product.findFirst({
       where: { id, deletedAt: null },
       include: {
@@ -152,11 +128,7 @@ export class ProductsService {
 
     if (!product) throw new NotFoundException(`Product with ID ${id} not found`);
 
-    if (!user) {
-      if (product.status !== ProductStatus.IN_STOCK) {
-        throw new ForbiddenException('This product is currently not available');
-      }
-    } else if (user.role !== UserRole.SUPER_ADMIN && product.siteId !== user.siteId) {
+    if (user.role === UserRole.SITE_MANAGER && product.siteId !== user.siteId) {
       throw new ForbiddenException(
         'You do not have permission to access products outside your site',
       );
@@ -169,7 +141,6 @@ export class ProductsService {
     id: string,
     dto: UpdateProductDto,
     user: CurrentUserPayload,
-    image?: Express.Multer.File,
   ): Promise<ProductEntity> {
     const existingProduct = await this.findOne(id, user);
 
@@ -177,61 +148,37 @@ export class ProductsService {
       throw new ForbiddenException('Only an admin can replace the product site');
     }
 
-    let imageUrl: string | undefined;
-    if (image) {
-      const uploadResult = await this.cloudinaryService.uploadFile(image, 'mofresh-products');
-      imageUrl = uploadResult.secure_url as string;
+    if (dto.coldRoomId || dto.siteId) {
+      const targetSiteId = dto.siteId || existingProduct.siteId;
+      const targetColdRoomId = dto.coldRoomId || existingProduct.coldRoomId;
+
+      if (targetColdRoomId) {
+        const room = await this.prisma.coldRoom.findUnique({
+          where: { id: targetColdRoomId },
+        });
+
+        if (!room || room.siteId !== targetSiteId) {
+          throw new BadRequestException(
+            'The selected cold room does not belong to the target site',
+          );
+        }
+      }
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      if (dto.coldRoomId && dto.coldRoomId !== existingProduct.coldRoomId) {
-        const targetRoom = await tx.coldRoom.findUnique({ where: { id: dto.coldRoomId } });
-        const targetSiteId = dto.siteId || existingProduct.siteId;
-
-        if (!targetRoom || targetRoom.siteId !== targetSiteId) {
-          throw new BadRequestException('Target cold room does not belong to the correct site');
-        }
-
-        if (targetRoom.status !== 'AVAILABLE') {
-          throw new BadRequestException(`Target room is ${targetRoom.status.toLowerCase()}`);
-        }
-
-        if (targetRoom.usedCapacityKg + existingProduct.quantityKg > targetRoom.totalCapacityKg) {
-          throw new BadRequestException('Target cold room does not have enough space');
-        }
-
-        await tx.coldRoom.update({
-          where: { id: existingProduct.coldRoomId },
-          data: { usedCapacityKg: { decrement: existingProduct.quantityKg } },
-        });
-
-        await tx.coldRoom.update({
-          where: { id: dto.coldRoomId },
-          data: { usedCapacityKg: { increment: existingProduct.quantityKg } },
-        });
-      }
-
-      const updated = await tx.product.update({
-        where: { id },
-        data: {
-          ...dto,
-          ...(imageUrl && { imageUrl }),
-        },
-        include: {
-          site: { select: { name: true } },
-          coldRoom: { select: { name: true } },
-        },
-      });
-
-      await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'Product', id, {
-        productName: updated.name,
-      } as Prisma.InputJsonValue);
-
-      return new ProductEntity({
-        ...updated,
-        status: updated.status,
-      });
+    const updated = await this.prisma.product.update({
+      where: { id },
+      data: dto,
+      include: {
+        site: { select: { name: true } },
+        coldRoom: { select: { name: true } },
+      },
     });
+
+    await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'Product', id, {
+      productName: updated.name,
+    } as Prisma.InputJsonValue);
+
+    return new ProductEntity(updated);
   }
 
   async adjustStock(
@@ -239,32 +186,31 @@ export class ProductsService {
     dto: AdjustStockDto,
     user: CurrentUserPayload,
   ): Promise<ProductEntity> {
-    await this.findOne(id, user);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const currentProduct = await this.findOne(id, user);
 
     return this.prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({
-        where: { id },
-      });
-
-      if (!product) throw new NotFoundException('Product not found');
+      const products = await tx.$queryRaw<any[]>`
+        SELECT id, "quantityKg", "coldRoomId", "deletedAt" FROM "Product" WHERE id = ${id} FOR UPDATE
+      `;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const product = products[0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (!product || product.deletedAt) throw new NotFoundException('Product not found');
 
       const isIncrement = dto.movementType === StockMovementType.IN;
       const weightChange = isIncrement ? dto.quantityKg : -dto.quantityKg;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const newQuantity = product.quantityKg + weightChange;
 
       if (newQuantity < 0) throw new BadRequestException('Insufficient stock for this operation');
 
       if (isIncrement) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         const coldRoom = await tx.coldRoom.findUnique({ where: { id: product.coldRoomId } });
 
         if (!coldRoom) {
           throw new NotFoundException('Associated cold room not found');
-        }
-
-        if (coldRoom.status !== 'AVAILABLE') {
-          throw new BadRequestException(
-            `Cannot add stock: Cold room is currently ${coldRoom.status.toLowerCase()}`,
-          );
         }
 
         if (coldRoom.usedCapacityKg + dto.quantityKg > coldRoom.totalCapacityKg) {
@@ -277,12 +223,14 @@ export class ProductsService {
       const updated = await tx.product.update({
         where: { id },
         data: {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           quantityKg: newQuantity,
           status: newQuantity > 0 ? ProductStatus.IN_STOCK : ProductStatus.OUT_OF_STOCK,
         },
       });
 
       await tx.coldRoom.update({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         where: { id: product.coldRoomId },
         data: { usedCapacityKg: { increment: weightChange } },
       });
@@ -290,6 +238,7 @@ export class ProductsService {
       await tx.stockMovement.create({
         data: {
           productId: id,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
           coldRoomId: product.coldRoomId,
           quantityKg: dto.quantityKg,
           movementType: dto.movementType,
@@ -298,28 +247,24 @@ export class ProductsService {
         },
       });
 
-      // Audit log
       await tx.auditLog.create({
         data: {
           action: AuditAction.UPDATE,
-          entityType: 'Product',
+          entityType: 'StockMovement',
           entityId: id,
           userId: user.userId,
           details: {
-            previousQuantity: product.quantityKg,
-            newQuantity,
             movementType: dto.movementType,
-            quantityChangedKg: dto.quantityKg,
+            quantityKg: dto.quantityKg,
             reason: dto.reason,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            newQuantity,
           },
           timestamp: new Date(),
         },
       });
 
-      return new ProductEntity({
-        ...updated,
-        status: updated.status,
-      });
+      return new ProductEntity(updated);
     });
   }
 
