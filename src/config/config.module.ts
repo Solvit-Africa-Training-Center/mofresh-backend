@@ -17,7 +17,7 @@ import * as Joi from 'joi';
         JWT_REFRESH_SECRET: Joi.string().required(),
         JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
         BCRYPT_ROUNDS: Joi.number().default(10),
-        CORS_ORIGIN: Joi.string().default('http://localhost:3001'),
+        CORS_ORIGIN: Joi.string().default('http://localhost:5173'),
         MOMO_API_USER: Joi.string().optional(),
         MOMO_API_KEY: Joi.string().optional(),
         MOMO_PRIMARY_KEY: Joi.string().optional(),
