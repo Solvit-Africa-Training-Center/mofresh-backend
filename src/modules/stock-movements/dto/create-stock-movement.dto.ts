@@ -1,4 +1,4 @@
-import { IsUUID, IsNumber, IsEnum, IsString, Min } from 'class-validator';
+import { IsUUID, IsNumber, IsEnum, IsString, Min, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { StockMovementType } from '@prisma/client';
 
@@ -23,4 +23,8 @@ export class CreateStockMovementDto {
   @ApiProperty({ example: 'Received new delivery' })
   @IsString()
   reason: string;
+
+  @IsUUID()
+  @IsOptional()
+  supplierId?: string;
 }

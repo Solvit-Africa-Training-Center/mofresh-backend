@@ -4,7 +4,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { UserRole, PowerType, AssetStatus, ProductStatus, TricycleCategory } from '@prisma/client';
+import {
+  UserRole,
+  PowerType,
+  AssetStatus,
+  ProductStatus,
+  TricycleCategory,
+  ProductCategory,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -403,7 +410,7 @@ export class SeederService {
       const productsData = [
         {
           name: 'Fresh Milk',
-          category: 'Dairy',
+          category: ProductCategory.DAIRY,
           quantityKg: 500,
           unit: 'Liters',
           supplierId: supplier1.id,
@@ -414,7 +421,7 @@ export class SeederService {
         },
         {
           name: 'Cheese',
-          category: 'Dairy',
+          category: ProductCategory.DAIRY,
           quantityKg: 100,
           unit: 'Kg',
           supplierId: supplier1.id,
@@ -425,7 +432,7 @@ export class SeederService {
         },
         {
           name: 'Tomatoes',
-          category: 'Vegetables',
+          category: ProductCategory.VEGETABLES,
           quantityKg: 300,
           unit: 'Kg',
           supplierId: supplier2.id,
@@ -436,7 +443,7 @@ export class SeederService {
         },
         {
           name: 'Beef',
-          category: 'Meat',
+          category: ProductCategory.MEAT,
           quantityKg: 200,
           unit: 'Kg',
           supplierId: supplier2.id,
