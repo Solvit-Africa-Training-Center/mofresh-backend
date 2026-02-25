@@ -33,4 +33,13 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(8)
   password?: string;
+
+  @ApiPropertyOptional({
+    enum: ['PERSONAL', 'BUSINESS'],
+    example: 'PERSONAL',
+    description: 'Account type for CLIENT role',
+  })
+  @IsOptional()
+  @IsString()
+  accountType?: string;
 }
