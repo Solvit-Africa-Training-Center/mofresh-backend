@@ -1,3 +1,6 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,6 +19,10 @@ enum UserRole {
   CLIENT
 }
 
+enum AccountType {
+  PERSONAL
+  BUSINESS
+}
 
 enum VendorRequestStatus {
   PENDING
@@ -85,6 +92,16 @@ enum AssetType {
   COLD_BOX
   COLD_PLATE
   TRICYCLE
+  COLD_ROOM
+}
+
+enum ProductCategory{
+  VEGETABLES
+  FRESH_FRUITS
+  MEAT
+  DAIRY
+  MEDECINE
+  PHARMACEUTICAL
 }
 
 enum TricycleCategory {
@@ -104,52 +121,28 @@ enum AuditAction {
   LOGOUT
 }
 
-enum ClientAccountType {
-  PERSONAL
-  BUSINESS
-}
-
 // ===== MODELS =====
 
 model User {
   id                    String            @id @default(uuid())
   email                 String            @unique
   password              String            // bcrypt hashed
-
-  firstName             String?
-  lastName              String?
-  
-  // common fields
+  firstName             String
+  lastName              String
   phone                 String            @unique
-
-  refreshToken          String?          
+  refreshToken          String?            //Store the HASHED refresh token here
   role                  UserRole
-  clientAccountType ClientAccountType?  // nullable enum
-
   siteId                String?           // NULL for SUPER_ADMIN
   isActive              Boolean           @default(true)
-
-  // business account fields (for CLIENT with BUSINESS account type)
-  businessName                String?
-  tinNumber                   String?
-  businessCertificateDocument String?   // URL to uploaded document
-  nationalIdDocument          String?   // URL to uploaded document
-
-  // vendor request fields 
-  vendorRequested       Boolean           @default(false)
-  vendorRequestStatus   VendorRequestStatus?
-  vendorRequestedAt     DateTime?
-  vendorApprovedAt      DateTime?
-  vendorApprovedBy      String?          
-  vendorRejectedAt      DateTime?
-  vendorRejectionReason String?
-
-  // supplier-specific fields
-  supplierType          String?           // Individual, Cooperative, Company
-
+  isProfileComplete     Boolean           @default(false)
+  accountType           AccountType?
+  businessName          String?
+  tinNumber             String?
+  businessCertificateDocument String?     // Cloudinary URL
+  nationalIdDocument     String?           // Cloudinary URL
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
-  deletedAt             DateTime?
+  deletedAt             DateTime?         // Soft delete
 
   // Relations
   site                  Site?             @relation(fields: [siteId], references: [id])
@@ -162,14 +155,10 @@ model User {
   approvedOrders        Order[]           @relation("ApprovedBy")
   paymentsMarkedBy      Payment[]         @relation("MarkedPaidBy")
   otps                  Otp[]             @relation("UserOtps")
-  vendorRequests        VendorRequest[]   @relation("VendorRequests")
-  approvedVendors       VendorRequest[]   @relation("ApprovedBy")
 
   @@index([email])
   @@index([role])
   @@index([siteId])
-  @@index([clientAccountType])
-  @@index([vendorRequestStatus])
   @@map("users")
 }
 
@@ -191,42 +180,10 @@ model Otp {
   @@map("otps")
 }
 
-model VendorRequest {
-  id                String              @id @default(uuid())
-  userId            String
-  status            VendorRequestStatus @default(PENDING)
-  
-  // request details
-  requestedRole     UserRole            @default(SUPPLIER)
-  businessDescription String?
-  productsOffered   String?             
-  expectedVolume    String?
-  preferredSiteId   String?
-  
-  // Approval/Rejection
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  rejectionReason   String?
-  adminNotes        String?
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-
-  // Relations
-  user              User                @relation("VendorRequests", fields: [userId], references: [id])
-  reviewer          User?               @relation("ApprovedBy", fields: [reviewedBy], references: [id])
-  preferredSite     Site?               @relation(fields: [preferredSiteId], references: [id])
-
-  @@index([userId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("vendor_requests")
-}
-
 
 model Site {
   id         String      @id @default(uuid())
-  name       String      @unique
+  name       String
   location   String
   managerId  String?     @unique
   createdAt  DateTime    @default(now())
@@ -244,7 +201,6 @@ model Site {
   orders     Order[]
   invoices   Invoice[]
   rentals    Rental[]
-  vendorRequests VendorRequest[]
 
   @@index([managerId])
   @@map("sites")
@@ -259,6 +215,8 @@ model ColdRoom {
   temperatureMin  Float
   temperatureMax  Float?
   powerType       PowerType
+  status          AssetStatus      @default(AVAILABLE)
+  imageUrl        String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -267,6 +225,7 @@ model ColdRoom {
   site            Site             @relation(fields: [siteId], references: [id])
   products        Product[]
   stockMovements  StockMovement[]
+  rentals         Rental[]
 
   @@index([siteId])
   @@map("cold_rooms")
@@ -341,7 +300,7 @@ model Tricycle {
 model Product {
   id                  String           @id @default(uuid())
   name                String
-  category            String?
+  category            ProductCategory
   quantityKg          Float
   unit                String
   supplierId          String
@@ -513,23 +472,25 @@ model Payment {
 }
 
 model Rental {
-  id              String       @id @default(uuid())
-  clientId        String
-  siteId          String
-  assetType       AssetType
-  coldBoxId       String?
-  coldPlateId     String?
-  tricycleId      String?
-  status          RentalStatus @default(REQUESTED)
-  rentalStartDate DateTime
-  rentalEndDate   DateTime
-  estimatedFee    Float
-  actualFee       Float?
-  approvedAt      DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime?
+  id                 String       @id @default(uuid())
+  clientId           String
+  siteId             String
+  assetType          AssetType
+  coldBoxId          String?
+  coldPlateId        String?
+  tricycleId         String?
+  coldRoomId         String?
+  status             RentalStatus @default(REQUESTED)
+  rentalStartDate    DateTime
+  rentalEndDate      DateTime
+  estimatedFee       Float
+  actualFee          Float?
+  capacityNeededKg   Float?
+  approvedAt         DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  deletedAt          DateTime?
 
   // Relations
   client          User         @relation("ClientRentals", fields: [clientId], references: [id])
@@ -537,6 +498,7 @@ model Rental {
   coldBox         ColdBox?     @relation(fields: [coldBoxId], references: [id])
   coldPlate       ColdPlate?   @relation(fields: [coldPlateId], references: [id])
   tricycle        Tricycle?    @relation(fields: [tricycleId], references: [id])
+  coldRoom        ColdRoom?    @relation(fields: [coldRoomId], references: [id])
   invoice         Invoice?
 
   @@index([clientId])
@@ -545,6 +507,7 @@ model Rental {
   @@index([coldBoxId])
   @@index([coldPlateId])
   @@index([tricycleId])
+  @@index([coldRoomId])
   @@map("rentals")
 }
 
@@ -564,4 +527,19 @@ model AuditLog {
   @@index([userId])
   @@index([timestamp])
   @@map("audit_logs")
+}
+model VendorRequest {
+  id          String              @id @default(uuid())
+  email       String
+  phone       String
+  description String?
+  replyMessage String?
+  status      VendorRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  deletedAt   DateTime?
+
+  @@index([email])
+  @@index([status])
+  @@map("vendor_requests")
 }

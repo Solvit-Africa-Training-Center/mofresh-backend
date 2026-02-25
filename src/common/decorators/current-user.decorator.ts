@@ -5,6 +5,8 @@ export interface CurrentUserPayload {
   email: string;
   role: string;
   siteId?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 interface RequestWithUser {

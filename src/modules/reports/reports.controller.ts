@@ -17,8 +17,7 @@ import {
   UnpaidInvoicesReportDto,
 } from './dto';
 import { RolesGuard } from '../../common/guards';
-import { Roles, CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser } from '../../common/interfaces';
+import { Roles, CurrentUser, CurrentUserPayload } from '../../common/decorators';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('Reports')
@@ -54,7 +53,7 @@ export class ReportsController {
   @ApiQuery({ name: 'siteId', required: false, type: String })
   async getRevenueReport(
     @Query() query: RevenueReportQueryDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<RevenueReportResponseDto | AggregatedRevenueReportDto> {
     this.logger.log('Revenue report requested', { query });
 
@@ -91,7 +90,7 @@ export class ReportsController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async getUnpaidInvoicesReport(
     @Query() query: UnpaidInvoicesQueryDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<UnpaidInvoicesReportDto> {
     this.logger.log('Unpaid invoices report requested', { query });
 

@@ -91,30 +91,20 @@ jobs:
           name: Run Database Migrations
           command: npx prisma migrate deploy
       - run:
-          name: Seed Database for E2E Tests
-          command: npx prisma db seed
-      - run:
           name: Run Unit Tests with Coverage
           command: npm run test:cov
       - run:
           name: Run E2E Tests
           command: npm run test:e2e
-      - run:
-          name: List Coverage Directory
-          command: ls -la coverage/ || echo "Coverage directory not found"
-      - run:
-          name: Create Coverage Directory if Missing
-          command: mkdir -p coverage
       - store_test_results:
-          path: coverage
+          path: ./coverage
       - store_artifacts:
-          path: coverage
+          path: ./coverage
           destination: coverage
       - persist_to_workspace:
           root: .
           paths:
             - coverage
-            - node_modules
 
   sonarqube:
     executor: node-postgres
@@ -126,14 +116,6 @@ jobs:
             git checkout ${CIRCLE_BRANCH:-main}
       - attach_workspace:
           at: .
-      - run:
-          name: Verify Coverage Files
-          command: |
-            if [ ! -f coverage/lcov.info ]; then
-              echo "Warning: coverage/lcov.info not found, creating dummy file"
-              mkdir -p coverage
-              touch coverage/lcov.info
-            fi
       - run:
           name: Install SonarScanner
           command: |
@@ -170,19 +152,12 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Verify Coverage Files
-          command: |
-            if [ ! -f coverage/lcov.info ]; then
-              echo "Warning: coverage/lcov.info not found, skipping Coveralls upload"
-              exit 0
-            fi
-      - run:
           name: Upload Coverage to Coveralls
           command: |
-            if [ -n "$COVERALLS_REPO_TOKEN" ] && [ -f coverage/lcov.info ]; then
+            if [ -n "$COVERALLS_REPO_TOKEN" ]; then
               npx coveralls < coverage/lcov.info
             else
-              echo "COVERALLS_REPO_TOKEN not set or coverage file missing. Skipping Coveralls upload."
+              echo "COVERALLS_REPO_TOKEN not set. Skipping Coveralls upload."
               echo "Configure COVERALLS_REPO_TOKEN in CircleCI project settings to enable."
             fi
 

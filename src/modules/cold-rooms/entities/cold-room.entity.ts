@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { PowerType } from '@prisma/client'; // Import the actual enum
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PowerType, AssetStatus } from '@prisma/client';
+import { ProductEntity } from '@/modules/products/entities/product.entity';
 
 export class ColdRoomEntity {
   @ApiProperty({ example: 'uuid-room-101' })
@@ -30,6 +31,19 @@ export class ColdRoomEntity {
   })
   powerType: PowerType;
 
+  @ApiProperty({
+    enum: AssetStatus,
+    example: AssetStatus.AVAILABLE,
+    description: 'Current operational status of the cold room',
+  })
+  status: AssetStatus;
+
+  @ApiPropertyOptional({
+    example: 'https://storage.googleapis.com/mofresh/coldroom-1.jpg',
+    nullable: true,
+  })
+  imageUrl: string | null;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -38,6 +52,9 @@ export class ColdRoomEntity {
 
   @ApiProperty({ nullable: true })
   deletedAt: Date | null;
+
+  @ApiPropertyOptional({ type: () => [ProductEntity] })
+  products?: ProductEntity[];
 
   constructor(partial: Partial<ColdRoomEntity>) {
     Object.assign(this, partial);

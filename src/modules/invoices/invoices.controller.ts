@@ -23,8 +23,8 @@ import {
 } from './dto';
 import { RolesGuard } from '../../common/guards';
 import { Roles } from '../../common/decorators';
-import { CurrentUser } from '../../common/decorators';
-import { AuthenticatedUser } from '../../common/interfaces';
+import { CurrentUser, CurrentUserPayload } from '../../common/decorators';
+
 import { UserRole } from '@prisma/client';
 
 @ApiTags('Invoices')
@@ -65,11 +65,11 @@ export class InvoicesController {
   })
   async generateOrderInvoice(
     @Body() dto: GenerateOrderInvoiceDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<InvoiceResponseDto> {
     const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
     const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.invoicesService.generateOrderInvoice(dto.orderId, dueDate, user.id, userSiteId);
+    return this.invoicesService.generateOrderInvoice(dto.orderId, dueDate, user.userId, userSiteId);
   }
 
   @Post('generate/rental')
@@ -103,11 +103,16 @@ export class InvoicesController {
   })
   async generateRentalInvoice(
     @Body() dto: GenerateRentalInvoiceDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<InvoiceResponseDto> {
     const dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
     const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.invoicesService.generateRentalInvoice(dto.rentalId, dueDate, user.id, userSiteId);
+    return this.invoicesService.generateRentalInvoice(
+      dto.rentalId,
+      dueDate,
+      user.userId,
+      userSiteId,
+    );
   }
 
   @Get()
@@ -122,7 +127,7 @@ export class InvoicesController {
     status: 401,
     description: 'Unauthorized - Authentication required',
   })
-  async findAll(@Query() query: QueryInvoicesDto, @CurrentUser() user: AuthenticatedUser) {
+  async findAll(@Query() query: QueryInvoicesDto, @CurrentUser() user: CurrentUserPayload) {
     // Apply role-based scoping
     let siteId: string | undefined;
     let clientId: string | undefined;
@@ -134,7 +139,7 @@ export class InvoicesController {
       siteId = user.siteId;
     } else if (user.role === UserRole.CLIENT) {
       // Clients can only see their own invoices
-      clientId = user.id;
+      clientId = user.userId;
     } else if (user.role === UserRole.SUPPLIER) {
       if (!user.siteId) {
         throw new BadRequestException('Supplier must have a valid site assignment');
@@ -168,7 +173,7 @@ export class InvoicesController {
   })
   async findOne(
     @Param('id') id: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<InvoiceResponseDto> {
     let siteId: string | undefined;
     let clientId: string | undefined;
@@ -179,7 +184,7 @@ export class InvoicesController {
       }
       siteId = user.siteId;
     } else if (user.role === UserRole.CLIENT) {
-      clientId = user.id;
+      clientId = user.userId;
     } else if (user.role === UserRole.SUPPLIER) {
       if (!user.siteId) {
         throw new BadRequestException('Supplier must have a valid site assignment');
@@ -213,7 +218,7 @@ export class InvoicesController {
   })
   async findByInvoiceNumber(
     @Param('invoiceNumber') invoiceNumber: string,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<InvoiceResponseDto> {
     const siteId = user.role === UserRole.SITE_MANAGER ? user.siteId || undefined : undefined;
     return this.invoicesService.findByInvoiceNumber(invoiceNumber, siteId);
@@ -252,10 +257,10 @@ export class InvoicesController {
   async markPaid(
     @Param('id') id: string,
     @Body() dto: MarkPaidDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<InvoiceResponseDto> {
     const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.invoicesService.markPaid(id, dto.paymentAmount, user.id, userSiteId);
+    return this.invoicesService.markPaid(id, dto.paymentAmount, user.userId, userSiteId);
   }
 
   @Patch(':id/void')
@@ -290,9 +295,9 @@ export class InvoicesController {
   async voidInvoice(
     @Param('id') id: string,
     @Body() dto: VoidInvoiceDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: CurrentUserPayload,
   ): Promise<void> {
     const userSiteId = user.role === UserRole.SUPER_ADMIN ? undefined : user.siteId;
-    return this.invoicesService.voidInvoice(id, dto.reason, user.id, userSiteId);
+    return this.invoicesService.voidInvoice(id, dto.reason, user.userId, userSiteId);
   }
 }

@@ -12,6 +12,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
+  // Security and Compression
   app.use(helmet());
   app.use(compression());
 
@@ -33,6 +34,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix(configService.get<string>('API_PREFIX', 'api/v1'));
 
+  // Global Validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -41,6 +43,7 @@ async function bootstrap() {
     }),
   );
 
+  // Swagger Documentation
   const config = new DocumentBuilder()
     .setTitle('MoFresh API')
     .setDescription('MoFresh Backend API Documentation')

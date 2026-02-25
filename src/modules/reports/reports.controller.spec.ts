@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 import { UserRole, InvoiceStatus } from '@prisma/client';
-import { AuthenticatedUser } from '../../common/interfaces';
+import { CurrentUserPayload } from '../../common/decorators';
 
 describe('ReportsController', () => {
   let controller: ReportsController;
@@ -12,16 +12,14 @@ describe('ReportsController', () => {
     getUnpaidInvoicesReport: jest.fn(),
   };
 
-  const mockUser: AuthenticatedUser = {
-    id: 'user-1',
+  const mockUser: CurrentUserPayload = {
     userId: 'user-1',
     email: 'admin@mofresh.com',
     role: UserRole.SUPER_ADMIN,
     siteId: undefined,
   };
 
-  const mockSiteManagerUser: AuthenticatedUser = {
-    id: 'user-2',
+  const mockSiteManagerUser: CurrentUserPayload = {
     userId: 'user-2',
     email: 'manager@mofresh.com',
     role: UserRole.SITE_MANAGER,

@@ -9,6 +9,7 @@ import {
   AssetStatus,
   ProductStatus,
   TricycleCategory,
+  ProductCategory,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -150,6 +151,21 @@ async function main() {
     },
   });
 
+  const manager4 = await prisma.user.upsert({
+    where: { email: 'umu1aimee@gmail.com' },
+    update: { siteId: site3.id },
+    create: {
+      email: 'umu1aimee@gmail.com',
+      password: hashedPassword,
+      firstName: 'Aimee',
+      lastName: 'site manager',
+      phone: '+250786243990',
+      role: UserRole.SITE_MANAGER,
+      siteId: site3.id,
+      isActive: true,
+    },
+  });
+
   const customManager = await prisma.user.upsert({
     where: { email: 'munezeromas+1@gmail.com' },
     update: { siteId: site1.id },
@@ -246,6 +262,21 @@ async function main() {
       firstName: 'Sarah',
       lastName: 'Uwimana',
       phone: '+250788777777',
+      role: UserRole.CLIENT,
+      siteId: site2.id,
+      isActive: true,
+    },
+  });
+
+  const client3 = await prisma.user.upsert({
+    where: { email: 'umu1aimee+1@gmail.com' },
+    update: { siteId: site2.id },
+    create: {
+      email: 'umu1aimee+1@gmail.com',
+      password: hashedPassword,
+      firstName: 'Ella',
+      lastName: 'Jojo',
+      phone: '+250737411811',
       role: UserRole.CLIENT,
       siteId: site2.id,
       isActive: true,
@@ -395,7 +426,7 @@ async function main() {
   const productsData = [
     {
       name: 'Fresh Milk',
-      category: 'Dairy',
+      category: ProductCategory.DAIRY,
       quantityKg: 500,
       unit: 'Liters',
       supplierId: supplier1.id,
@@ -406,7 +437,7 @@ async function main() {
     },
     {
       name: 'Cheese',
-      category: 'Dairy',
+      category: ProductCategory.DAIRY,
       quantityKg: 100,
       unit: 'Kg',
       supplierId: supplier1.id,
@@ -417,7 +448,7 @@ async function main() {
     },
     {
       name: 'Tomatoes',
-      category: 'Vegetables',
+      category: ProductCategory.VEGETABLES,
       quantityKg: 300,
       unit: 'Kg',
       supplierId: supplier2.id,
@@ -428,7 +459,7 @@ async function main() {
     },
     {
       name: 'Beef',
-      category: 'Meat',
+      category: ProductCategory.MEAT,
       quantityKg: 200,
       unit: 'Kg',
       supplierId: supplier2.id,

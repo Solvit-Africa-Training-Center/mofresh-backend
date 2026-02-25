@@ -78,26 +78,14 @@ describe('AuthController', () => {
           phone: '12345',
           isActive: true,
           siteId: null,
-          clientAccountType: null,
-          businessName: null,
-          tinNumber: null,
-          businessCertificateDocument: null,
-          nationalIdDocument: null,
-          vendorRequested: false,
-          vendorRequestStatus: null,
-          vendorRequestedAt: null,
-          vendorApprovedAt: null,
-          vendorApprovedBy: null,
-          vendorRejectedAt: null,
-          vendorRejectionReason: null,
-          supplierType: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           deletedAt: null,
         },
       };
 
-      jest.spyOn(authService, 'verifyOtp').mockResolvedValue(result);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      jest.spyOn(authService, 'verifyOtp').mockResolvedValue(result as any);
       const response = await authController.verifyOtp(verifyOtpDto);
       expect(response).toEqual(result);
     });
