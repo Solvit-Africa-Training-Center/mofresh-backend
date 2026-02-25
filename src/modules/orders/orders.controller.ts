@@ -16,9 +16,10 @@ import { OrderStatus, UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 @ApiTags('Orders')
 @Controller('orders')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

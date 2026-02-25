@@ -22,6 +22,7 @@ import {
   VoidInvoiceDto,
 } from './dto';
 import { RolesGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles } from '../../common/decorators';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators';
 
@@ -29,7 +30,7 @@ import { UserRole } from '@prisma/client';
 
 @ApiTags('Invoices')
 @Controller('invoices')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}

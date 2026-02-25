@@ -25,10 +25,11 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AssetType, RentalStatus, UserRole } from '@prisma/client';
 import { RolesGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('Rentals')
 @Controller('rentals')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RentalsController {
   constructor(private readonly rentalsService: RentalsService) {}

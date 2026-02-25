@@ -17,12 +17,13 @@ import {
   UnpaidInvoicesReportDto,
 } from './dto';
 import { RolesGuard } from '../../common/guards';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles, CurrentUser, CurrentUserPayload } from '../../common/decorators';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('Reports')
 @Controller('reports')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 @ApiExtraModels(RevenueReportResponseDto, AggregatedRevenueReportDto)
 export class ReportsController {

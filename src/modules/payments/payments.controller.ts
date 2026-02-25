@@ -11,11 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
-import { InitiatePaymentDto } from './dto';
+import { InitiatePaymentDto, PaymentFilterDto } from './dto';
 import { RolesGuard } from '../../common/guards';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Roles, CurrentUser, CurrentUserPayload } from '../../common/decorators';
-import { UserRole, PaymentStatus } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -62,7 +62,7 @@ export class PaymentsController {
   @Roles(UserRole.SITE_MANAGER, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'List all payments' })
   @ApiResponse({ status: 200, description: 'Payments list' })
-  async findAll(@Query('invoiceId') invoiceId?: string, @Query('status') status?: PaymentStatus) {
-    return this.paymentsService.findAll({ invoiceId, status });
+  async findAll(@Query() filters: PaymentFilterDto) {
+    return this.paymentsService.findAll(filters);
   }
 }
