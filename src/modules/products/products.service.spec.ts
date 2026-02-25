@@ -84,6 +84,10 @@ describe('ProductsService', () => {
     createAuditLog: jest.fn(),
   };
 
+  const mockCloudinaryService = {
+    uploadImage: jest.fn().mockResolvedValue({ secure_url: 'https://example.com/new-image.jpg' }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [

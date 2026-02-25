@@ -100,13 +100,13 @@ export class UsersService {
         siteId: dto.siteId || null,
         isActive: true,
         accountType:
-          (extraFields.accountType as unknown as AccountType) ||
-          (dto.role === UserRole.CLIENT ? AccountType.PERSONAL : null),
-        businessName: extraFields.businessName || null,
-        tinNumber: extraFields.tinNumber || null,
-        businessCertificateDocument: extraFields.businessCertificateDocument || null,
-        nationalIdDocument: extraFields.nationalIdDocument || null,
-      },
+          ((extraFields as any).accountType as unknown as AccountType) ||
+          (dto.role === UserRole.CLIENT ? AccountType.PERSONAL : (null as any)),
+        businessName: (extraFields as any).businessName || null,
+        tinNumber: (extraFields as any).tinNumber || null,
+        businessCertificateDocument: (extraFields as any).businessCertificateDocument || null,
+        nationalIdDocument: (extraFields as any).nationalIdDocument || null,
+      } as any,
     });
 
     // Update completeness after creation (fields are now in user object)
@@ -336,7 +336,7 @@ export class UsersService {
     });
 
     // Send email to the vendor
-    await this.mailService.sendEmail(request.email, 'Reply to your Vendor Request', dto.message);
+    await this.mailService.sendEmail((request as any).email, 'Reply to your Vendor Request', dto.message);
 
     return {
       status: 'success',

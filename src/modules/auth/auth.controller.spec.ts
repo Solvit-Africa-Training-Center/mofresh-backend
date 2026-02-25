@@ -77,6 +77,7 @@ describe('AuthController', () => {
           lastName: 'Doe',
           phone: '12345',
           isActive: true,
+          isProfileComplete: false,
           siteId: null,
           createdAt: new Date(),
           updatedAt: new Date(),

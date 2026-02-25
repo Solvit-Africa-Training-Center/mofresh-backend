@@ -475,7 +475,7 @@ async function main() {
       where: { name: data.name, siteId: data.siteId },
     });
     if (!existing) {
-      await prisma.product.create({ data });
+      await prisma.product.create({ data: data as any });
     }
   }
 

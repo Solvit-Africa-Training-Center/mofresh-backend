@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Query,
   Delete,
   Body,
   Param,
@@ -10,7 +11,6 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
@@ -56,8 +56,8 @@ export class ColdAssetsController {
   @Get('tricycles')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get tricycles (Admin sees all, Manager sees their site)' })
-  getTricycles(@CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.findTricycles(user);
+  getTricycles(@CurrentUser() user: CurrentUserPayload, @Query('siteId') siteId?: string) {
+    return this.assetsService.findTricycles(user, siteId);
   }
 
   @Public()
@@ -111,8 +111,8 @@ export class ColdAssetsController {
   @Get('boxes')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get cold boxes (Filtered by user scope)' })
-  getBoxes(@CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.findColdBoxes(user);
+  getBoxes(@CurrentUser() user: CurrentUserPayload, @Query('siteId') siteId?: string) {
+    return this.assetsService.findColdBoxes(user, siteId);
   }
 
   @Public()
@@ -166,8 +166,8 @@ export class ColdAssetsController {
   @Get('plates')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SITE_MANAGER)
   @ApiOperation({ summary: 'Get cold plates (Filtered by user scope)' })
-  getPlates(@CurrentUser() user: CurrentUserPayload) {
-    return this.assetsService.findColdPlates(user);
+  getPlates(@CurrentUser() user: CurrentUserPayload, @Query('siteId') siteId?: string) {
+    return this.assetsService.findColdPlates(user, siteId);
   }
 
   @Public()

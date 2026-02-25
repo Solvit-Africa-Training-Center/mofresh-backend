@@ -4,12 +4,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as compression from 'compression';
-import { json } from 'express';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
 
   // Security and Compression
@@ -17,8 +17,11 @@ async function bootstrap() {
   app.use(compression());
 
   // raw body for webhook signature verification
+  // Increase payload limits for large images (base64)
+  const limit = '50mb';
   app.use(
     json({
+      limit,
       verify: (req: { url?: string; rawBody?: string }, res, buf) => {
         if (req.url?.includes('/webhooks/')) {
           req.rawBody = buf.toString('utf8');
@@ -26,10 +29,17 @@ async function bootstrap() {
       },
     }),
   );
+  app.use(urlencoded({ limit, extended: true }));
 
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', '*'),
+    origin: [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'https://mofresh.rw',
+      'https://mofresh-system.vercel.app',
+    ],
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   });
 
   app.setGlobalPrefix(configService.get<string>('API_PREFIX', 'api/v1'));

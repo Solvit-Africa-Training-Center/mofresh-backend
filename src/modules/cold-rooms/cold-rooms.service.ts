@@ -160,7 +160,7 @@ export class ColdRoomService {
 
     await this.auditService.createAuditLog(user.userId, AuditAction.UPDATE, 'ColdRoom', id, {
       coldRoomName: updated.name,
-      status: updated.status,
+      status: (updated as any).status,
     });
     return new ColdRoomEntity(updated);
   }
@@ -194,5 +194,36 @@ export class ColdRoomService {
     });
 
     return { message: 'Cold room deleted successfully' };
+  }
+
+  async findAllPublic(): Promise<ColdRoomEntity[]> {
+    const rooms = await this.prisma.coldRoom.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rooms.map((room) => new ColdRoomEntity(room));
+  }
+
+  async findDiscovery(siteId?: string): Promise<ColdRoomEntity[]> {
+    const where: any = { deletedAt: null };
+    if (siteId) {
+      where.siteId = siteId;
+    }
+
+    const rooms = await this.prisma.coldRoom.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    return rooms.map((room) => new ColdRoomEntity(room));
+  }
+
+  async findOneDiscovery(id: string): Promise<ColdRoomEntity> {
+    const room = await this.prisma.coldRoom.findUnique({
+      where: { id, deletedAt: null },
+    });
+
+    if (!room) throw new NotFoundException('Cold room not found');
+
+    return new ColdRoomEntity(room);
   }
 }

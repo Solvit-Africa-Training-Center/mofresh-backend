@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Injectable,
   NotFoundException,
@@ -54,9 +57,9 @@ export class ProductsService {
         throw new BadRequestException('Selected cold room does not belong to the product site');
       }
 
-      if (room.status !== 'AVAILABLE') {
+      if ((room as any).status !== 'AVAILABLE') {
         throw new BadRequestException(
-          `Cannot add product: Cold room is currently ${room.status.toLowerCase()}`,
+          `Cannot add product: Cold room is currently ${(room as any).status.toLowerCase()}`,
         );
       }
 
@@ -64,9 +67,12 @@ export class ProductsService {
         throw new BadRequestException('Not enough space in the selected cold room');
       }
 
+      // Sanitize DTO to remove 'image' field before passing to Prisma
+      const { image: _image, ...createData } = dto as any;
+
       const product = await tx.product.create({
         data: {
-          ...dto,
+          ...createData,
           ...(imageUrl && { imageUrl }),
           status: ProductStatus.IN_STOCK,
         },
@@ -173,7 +179,17 @@ export class ProductsService {
   ): Promise<ProductEntity> {
     const existingProduct = await this.findOne(id, user);
 
-    if (user.role === UserRole.SITE_MANAGER && dto.siteId) {
+    if (image) {
+      const upload = await this.cloudinaryService.uploadImage(image);
+      dto.imageUrl = upload.secure_url;
+    }
+
+    // Fix: Only block site manager if they try to CHANGE the site
+    if (
+      user.role === UserRole.SITE_MANAGER &&
+      dto.siteId &&
+      dto.siteId !== existingProduct.siteId
+    ) {
       throw new ForbiddenException('Only an admin can replace the product site');
     }
 
@@ -192,8 +208,8 @@ export class ProductsService {
           throw new BadRequestException('Target cold room does not belong to the correct site');
         }
 
-        if (targetRoom.status !== 'AVAILABLE') {
-          throw new BadRequestException(`Target room is ${targetRoom.status.toLowerCase()}`);
+        if ((targetRoom as any).status !== 'AVAILABLE') {
+          throw new BadRequestException(`Target room is ${(targetRoom as any).status.toLowerCase()}`);
         }
 
         if (targetRoom.usedCapacityKg + existingProduct.quantityKg > targetRoom.totalCapacityKg) {
@@ -261,9 +277,9 @@ export class ProductsService {
           throw new NotFoundException('Associated cold room not found');
         }
 
-        if (coldRoom.status !== 'AVAILABLE') {
+        if ((coldRoom as any).status !== 'AVAILABLE') {
           throw new BadRequestException(
-            `Cannot add stock: Cold room is currently ${coldRoom.status.toLowerCase()}`,
+            `Cannot add stock: Cold room is currently ${(coldRoom as any).status.toLowerCase()}`,
           );
         }
 
@@ -364,5 +380,46 @@ export class ProductsService {
     });
 
     return { message: 'Product deleted successfully' };
+  }
+
+  async findAllPublic(): Promise<ProductEntity[]> {
+    const products = await this.prisma.product.findMany({
+      where: { deletedAt: null, status: ProductStatus.IN_STOCK },
+      include: {
+        site: { select: { name: true, location: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return products.map((p) => new ProductEntity(p));
+  }
+
+  async findDiscovery(siteId?: string): Promise<ProductEntity[]> {
+    const where: any = { deletedAt: null, status: ProductStatus.IN_STOCK };
+    if (siteId) {
+      where.siteId = siteId;
+    }
+
+    const products = await this.prisma.product.findMany({
+      where,
+      include: {
+        site: { select: { name: true, location: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return products.map((p) => new ProductEntity(p));
+  }
+
+  async findOneDiscovery(id: string): Promise<ProductEntity> {
+    const product = await this.prisma.product.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        supplier: { select: { firstName: true, lastName: true } },
+        site: { select: { name: true, location: true } },
+      },
+    });
+
+    if (!product) throw new NotFoundException(`Product with ID ${id} not found`);
+
+    return new ProductEntity(product);
   }
 }
